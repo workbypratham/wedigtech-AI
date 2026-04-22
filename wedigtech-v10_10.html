@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Wedigtech — AI Business OS</title>
-<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
 :root{
   --purple:#6337AB;--purple-l:rgba(99,55,171,.08);--purple-m:rgba(99,55,171,.14);
@@ -65,7 +63,12 @@ button,input,textarea,select{font-family:inherit}
 </head>
 <body>
 <div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script type="text/babel" data-presets="react">
+
 const{useState,useEffect,useRef,useCallback,useMemo}=React;
 
 /* ─── TOKENS ──────────────────────────────────── */
@@ -711,7 +714,7 @@ const ALL_SUGGESTIONS=[
 const TYPE_LABELS={playbook:'Playbook',toolkit:'Toolkit',agent:'AI Agent'};
 const TYPE_COLORS={playbook:'#6337AB',toolkit:'#D97706',agent:'#0A0A0B'};
 
-function AISearchBox({onTab,toast}){
+function AISearchBox({onTab,toast,onDeepLink}){
   const[val,setVal]=useState('');
   const[focused,setFocused]=useState(false);
   const[sel,setSel]=useState(-1);
@@ -777,6 +780,10 @@ function AISearchBox({onTab,toast}){
   const pickItem=item=>{
     onTab(item.tab);
     setFocused(false);setVal('');setSel(-1);
+    // Deep-link into specific item if it has an id
+    if(item.id&&onDeepLink){
+      setTimeout(()=>onDeepLink({type:item.type,id:item.id}),80);
+    }
     toast(`Opening ${item.label}…`,null,'success');
   };
 
@@ -969,20 +976,30 @@ const CAT_MAP={
   Content:{pbTags:['GROW'],                             agCats:['Marketing'],           tkTags:['GROW','ALL']},
 };
 
-function HomePage({user,toast,testMode,onTab,obAnswers}){
+function HomePage({user,toast,testMode,onTab,obAnswers,onDeepLink}){
   const h=new Date().getHours();const greet=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
   const isNew=testMode==='new';
   const active=PLAYBOOKS.filter(p=>p.active);
   const[cat,setCat]=useState('All');
+
+  // Auto-personalise category from onboarding answers
+  useEffect(()=>{
+    if(!obAnswers?.goal)return;
+    const g=(obAnswers.goal+' '+(obAnswers.stage||'')).toLowerCase();
+    if(g.includes('fund')||g.includes('raise')||g.includes('investor'))setCat('Fundraise');
+    else if(g.includes('automate')||g.includes('ops')||g.includes('workflow'))setCat('Automate');
+    else if(g.includes('mrr')||g.includes('customer')||g.includes('revenue')||g.includes('sell')||g.includes('growth'))setCat('Grow');
+    else if(g.includes('product')||g.includes('mvp')||g.includes('build')||g.includes('launch'))setCat('Build');
+    else if(g.includes('content')||g.includes('seo')||g.includes('blog')||g.includes('linkedin'))setCat('Content');
+  },[obAnswers]);
 
   const map=CAT_MAP[cat]||CAT_MAP.All;
   const filteredPB=PLAYBOOKS.filter(p=>map.pbTags.includes(p.tag));
   const filteredAg=AGENTS.filter(a=>map.agCats.includes(a.cat));
   const filteredTK=TOOLKITS.filter(t=>map.tkTags.includes(t.tag)||t.tag==='ALL');
 
-  // For returning user — show in-progress first, then filtered
   const inProgressPB=active.filter(p=>map.pbTags.includes(p.tag));
-  const recommendedPB=filteredPB.filter(p=>!p.active).slice(0,cat==='All'?3:6);
+  const recommendedPB=filteredPB.filter(p=>!p.active).slice(0,3);
 
   return <div>
 
@@ -996,7 +1013,7 @@ function HomePage({user,toast,testMode,onTab,obAnswers}){
 
     {/* AI SEARCH BOX */}
     <div style={{marginBottom:22,position:'relative',zIndex:10}}>
-      <AISearchBox onTab={onTab} toast={toast}/>
+      <AISearchBox onTab={onTab} toast={toast} onDeepLink={onDeepLink}/>
     </div>
 
     {/* ── UNIFIED DARK BOX — activity for returning, first-win for new ── */}
@@ -1098,15 +1115,23 @@ function HomePage({user,toast,testMode,onTab,obAnswers}){
 
     {/* ── RECOMMENDED PLAYBOOKS — filtered by cat ── */}
     {recommendedPB.length>0&&<>
-      <SHd
-        title={cat==='All'?'Recommended Playbooks':`${cat} Playbooks`}
-        link="Browse all"
-        onLink={()=>onTab('playbooks')}
-        style={{marginBottom:14}}/>
+      <div style={{marginBottom:14,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div>
+          <SHd title={cat==='All'?'Recommended Playbooks':`${cat} Playbooks`} link="Browse all" onLink={()=>onTab('playbooks')}/>
+          {obAnswers?.goal&&cat!=='All'&&<div style={{fontSize:11,color:C.purple,fontFamily:C.sans,marginTop:2,display:'flex',alignItems:'center',gap:5}}>
+            <Icon name="sparkle" size={10} color={C.purple}/>
+            Personalised for your goal: {obAnswers.goal.slice(0,40)}{obAnswers.goal.length>40?'…':''}
+          </div>}
+        </div>
+      </div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:13,marginBottom:28}}>
-        {recommendedPB.slice(0,3).map(pb=>(
-          <RecCard key={pb.id} pb={pb} toast={toast}/>
-        ))}
+        {recommendedPB.map(pb=>{
+          const handleOpen=p=>{
+            onTab('playbooks');
+            if(onDeepLink)setTimeout(()=>onDeepLink({type:'playbook',id:p.id}),80);
+          };
+          return <RecCard key={pb.id} pb={pb} toast={toast} onOpen={handleOpen}/>;
+        })}
       </div>
     </>}
     {recommendedPB.length===0&&filteredPB.filter(p=>!p.active).length===0&&<div style={{background:C.surface,border:`1px dashed ${C.borderS}`,borderRadius:14,padding:'32px',textAlign:'center',marginBottom:28}}>
@@ -1117,28 +1142,20 @@ function HomePage({user,toast,testMode,onTab,obAnswers}){
 
     {/* ── AI AGENTS — filtered by cat ── */}
     {filteredAg.length>0&&<>
-      <SHd
-        title={cat==='All'?'AI Agents':'Top Agents for '+cat}
-        link="View all agents"
-        onLink={()=>onTab('agents')}
-        style={{marginBottom:14}}/>
+      <SHd title={cat==='All'?'AI Agents':'Top Agents for '+cat} link="View all agents" onLink={()=>onTab('agents')} style={{marginBottom:14}}/>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:13,marginBottom:28}}>
         {filteredAg.slice(0,3).map(ag=>(
-          <HomeAgentCard key={ag.id} agent={ag} toast={toast} onTab={onTab}/>
+          <HomeAgentCard key={ag.id} agent={ag} toast={toast} onTab={onTab} onDeepLink={onDeepLink}/>
         ))}
       </div>
     </>}
 
     {/* ── TOOLKITS — filtered by cat ── */}
     {filteredTK.length>0&&<>
-      <SHd
-        title={cat==='All'?'Toolkits':'Top Toolkits for '+cat}
-        link="Browse toolkits"
-        onLink={()=>onTab('toolkits')}
-        style={{marginBottom:14}}/>
+      <SHd title={cat==='All'?'Toolkits':'Top Toolkits for '+cat} link="Browse toolkits" onLink={()=>onTab('toolkits')} style={{marginBottom:14}}/>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:11,marginBottom:8}}>
         {filteredTK.slice(0,4).map(tk=>(
-          <HomeTKCard key={tk.id} toolkit={tk} toast={toast} onTab={onTab}/>
+          <HomeTKCard key={tk.id} toolkit={tk} toast={toast} onTab={onTab} onDeepLink={onDeepLink}/>
         ))}
       </div>
     </>}
@@ -1147,12 +1164,16 @@ function HomePage({user,toast,testMode,onTab,obAnswers}){
 }
 
 /* ── HOME AGENT CARD ── */
-function HomeAgentCard({agent,toast,onTab}){
+function HomeAgentCard({agent,toast,onTab,onDeepLink}){
   const[h,setH]=useState(false);
   const running=agent.status==='running';
+  const handleClick=()=>{
+    onTab('agents');
+    if(onDeepLink)setTimeout(()=>onDeepLink({type:'agent',id:agent.id}),80);
+  };
   return <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
     style={{background:C.surface,border:`1px solid ${h?C.purple+'50':running?C.purple+'30':C.border}`,borderRadius:14,padding:16,cursor:'pointer',transition:'all .18s',boxShadow:h?`0 8px 28px ${C.purple}14`:'none',transform:h?'translateY(-2px)':'none'}}
-    onClick={()=>onTab('agents')}>
+    onClick={handleClick}>
     <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:12}}>
       <div style={{width:38,height:38,borderRadius:10,background:running?C.purple+'15':C.bg,border:`1px solid ${running?C.purple+'30':C.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
         <Icon name={agent.icon} size={18} color={running?C.purple:C.t2}/>
@@ -1176,12 +1197,16 @@ function HomeAgentCard({agent,toast,onTab}){
 }
 
 /* ── HOME TOOLKIT CARD ── */
-function HomeTKCard({toolkit,toast,onTab}){
+function HomeTKCard({toolkit,toast,onTab,onDeepLink}){
   const[h,setH]=useState(false);
   const col=TAG_COLORS[toolkit.tag]||C.t2;
+  const handleClick=()=>{
+    onTab('toolkits');
+    if(onDeepLink)setTimeout(()=>onDeepLink({type:'toolkit',id:toolkit.id}),80);
+  };
   return <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
     style={{background:C.surface,border:`1px solid ${h?col+'50':C.border}`,borderRadius:13,overflow:'hidden',cursor:'pointer',transition:'all .18s',boxShadow:h?`0 6px 22px ${col}14`:'none',transform:h?'translateY(-2px)':'none'}}
-    onClick={()=>onTab('toolkits')}>
+    onClick={handleClick}>
     <div style={{height:3,background:`linear-gradient(90deg,${col},${col}80)`}}/>
     <div style={{padding:'13px 14px'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
@@ -1223,17 +1248,25 @@ function ActivePBCard({pb,toast}){
     </div>
   </Card>;
 }
-function RecCard({pb,toast}){
-  return <Card onClick={()=>toast(`Starting ${pb.title}…`)} accent={pb.col}>
-    <Tag label={pb.tag} col={pb.col}/>
-    <div style={{fontSize:13,fontWeight:700,color:C.text,margin:'8px 0 3px',lineHeight:1.3}}>{pb.title}</div>
-    <div style={{fontSize:11,color:C.green,fontWeight:600,marginBottom:4}}>→ {pb.outcome}</div>
-    <div style={{fontSize:11,color:C.t3,lineHeight:1.5,marginBottom:10}}>{pb.timeLeft} · {pb.steps||pb.phases} steps</div>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-      <span style={{fontSize:10,color:C.t4}}>{pb.prompts} prompts</span>
-      <span style={{fontSize:12,fontWeight:600,color:C.purple,cursor:'pointer'}}>Start →</span>
+function RecCard({pb,toast,onOpen}){
+  const[h,setH]=useState(false);
+  return <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
+    onClick={()=>onOpen?onOpen(pb):toast(`Opening ${pb.title}…`)}
+    style={{background:C.surface,borderRadius:14,border:`1px solid ${h?pb.col+'40':C.border}`,cursor:'pointer',transition:'all .18s',boxShadow:h?`0 6px 20px ${pb.col}12`:'none',transform:h?'translateY(-2px)':'none',overflow:'hidden'}}>
+    <div style={{height:2,background:pb.col}}/>
+    <div style={{padding:'14px 16px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+        <Tag label={pb.tag} col={pb.col}/>
+        <span style={{fontSize:10,color:C.t4,fontFamily:C.sans}}>{pb.prompts} prompts</span>
+      </div>
+      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:3,lineHeight:1.3,fontFamily:C.heading}}>{pb.title}</div>
+      <div style={{fontSize:11,color:pb.col,fontWeight:600,marginBottom:8,fontFamily:C.sans}}>→ {pb.outcome}</div>
+      <div style={{fontSize:11,color:C.t3,marginBottom:14,fontFamily:C.sans}}>{pb.timeLeft} · {pb.steps||pb.phases} steps</div>
+      <div style={{display:'flex',justifyContent:'flex-end'}}>
+        <span style={{fontSize:12,fontWeight:600,color:pb.col,fontFamily:C.sans}}>Start →</span>
+      </div>
     </div>
-  </Card>;
+  </div>;
 }
 function AgentMini({agent,toast}){
   const running=agent.status==='running';
@@ -1271,6 +1304,10 @@ function ActivityRow({item,isLast,toast}){
    ═══════════════════════════════════════════════ */
 
 /* Extended Playbook data with phase prompts */
+
+
+</script>
+<script type="text/babel" data-presets="react">
 const PB_PHASES={
   1:[
     {num:1,title:'Validate',sub:'Confirm the problem is real and painful',overview:'Before writing a single line of code, you need to confirm that the problem you\'re solving is real, painful, and worth solving. This step focuses on customer discovery and validation.',prompts:['Write 5 interview questions to validate this problem exists','List the top 3 assumptions I need to test before building','Draft a 60-second problem statement for user interviews','Identify 10 people I can interview about this problem this week','Write a jobs-to-be-done statement for my target user'],done:true},
@@ -1392,12 +1429,175 @@ const PB_PHASES={
       ]
     },
   ],
+  3:[
+    {num:1,title:'Define Your ICP',sub:'Get crystal-clear on who your first 100 customers are',overview:'Most founders skip ICP definition and wonder why their outreach fails. Your first 100 customers are not "everyone." They are a specific person at a specific type of company facing a specific problem right now. This step forces the precision that makes every downstream effort work.',prompts:[
+      {num:'01',text:'Describe your best current customer (or the customer you most want). Company size, industry, role, pain they have, how they found you, why they bought. Be as specific as possible.',useWhen:'Starting ICP definition from scratch'},
+      {num:'02',text:'Write 3 versions of my ICP — narrow (most likely to buy now), medium (likely to buy in 90 days), and broad (eventually). For each: job title, company type, size, industry, the problem they have, and the trigger that makes them buy.',useWhen:'Creating a tiered ICP definition'},
+      {num:'03',text:'What are the top 5 signals that tell me someone is my ICP right now — not someday? Think: job title, tech stack they use, company size, recent company event, or behaviour.',useWhen:'Building ICP qualification criteria'},
+      {num:'04',text:'Write 10 qualifying questions I can ask in a discovery call to determine whether someone is my ideal customer within the first 5 minutes.',useWhen:'Building sales qualification framework'},
+      {num:'05',text:'Where do my ICP spend time online? List the specific communities, forums, LinkedIn groups, newsletters, and events they attend. How do I find and reach them there?',useWhen:'Identifying ICP watering holes for outreach'},
+    ],done:false,active:true},
+    {num:2,title:'Nail Your Messaging',sub:'Make your value proposition impossible to ignore',overview:'If you cannot explain what you do in one sentence that makes your ICP say "I need that," no amount of distribution will fix it. This step builds the messaging hierarchy — from your one-liner to your full pitch.',prompts:[
+      {num:'06',text:'Write my one-sentence value proposition using this format: "We help [ICP] achieve [outcome] without [the thing they hate doing]." Give me 5 variations.',useWhen:'Writing core value proposition'},
+      {num:'07',text:'What are the top 3 objections my ICP has before buying? For each objection, write the response that addresses it honestly and builds trust.',useWhen:'Preparing objection handling'},
+      {num:'08',text:'Write a cold email subject line A/B test. Give me 5 subject lines for my ICP [describe]. For each: the psychological trigger it uses (curiosity, relevance, pain, social proof, or urgency).',useWhen:'Writing outreach subject lines'},
+      {num:'09',text:'Write my 30-second pitch for my ICP [describe]. It should open with the problem, describe the solution in plain language, give one proof point, and end with a clear next step.',useWhen:'Preparing verbal pitch for calls and events'},
+      {num:'10',text:'My ICP cares most about [outcome]. Write 3 completely different homepage headline options — one leading with the problem, one with the outcome, one with the mechanism.',useWhen:'Writing homepage and landing page copy'},
+    ],done:false},
+    {num:3,title:'First 10 Customers',sub:'Get to 10 paying customers by hand — do things that don\'t scale',overview:'Your first 10 customers cannot come from automated systems. They come from founder relationships, direct outreach, and community. This is the phase where you close deals manually and learn what actually works before you systematise it.',prompts:[
+      {num:'11',text:'List every person I know who is my ICP or knows someone who is. Draft a personalised outreach message for the top 10 — reference our relationship, be specific about what I\'m building, and make a direct ask.',useWhen:'Warm outreach to existing network'},
+      {num:'12',text:'I want to find my first customers in online communities. Write a community engagement strategy for [specific community]. What questions should I answer? What value should I share? When and how do I mention my product?',useWhen:'Finding first customers in communities'},
+      {num:'13',text:'Write a cold outreach sequence (3 emails) targeting [specific ICP]. Email 1: personalised opener + problem + single ask. Email 2 (day 4): different angle + social proof. Email 3 (day 9): breakup + genuine value. Each under 80 words.',useWhen:'Cold email outreach to ICP'},
+      {num:'14',text:'I just got on a discovery call with a potential customer. Write 10 questions I should ask to understand their problem deeply, qualify them as a customer, and uncover what it would take for them to buy.',useWhen:'Running discovery calls'},
+      {num:'15',text:'A prospect said they\'re interested but not ready to buy. Write a follow-up strategy: what to send, when to send it, and how many touches before I move on.',useWhen:'Following up with warm prospects'},
+    ],done:false},
+    {num:4,title:'Scale to 100',sub:'Build the repeatable motion that goes from 10 to 100',overview:'Once you have 10 customers and know what works, you systematise. This step builds the repeatable acquisition motion — the channels, the sequence, the referral loop — that takes you from 10 to 100 without burning out.',prompts:[
+      {num:'16',text:'I have 10 customers. Analyse what they have in common: same industry, company size, role, problem, referral source. Based on this pattern, define my refined ICP and the acquisition channel that brought in the most of them.',useWhen:'Identifying your best acquisition channel from early customers'},
+      {num:'17',text:'Design a referral system for my first 10 customers. What incentive would make them refer me to 2 other people? How do I ask? Write the exact message I send to each customer.',useWhen:'Building a referral programme'},
+      {num:'18',text:'I want to go from 10 to 100 customers in [N] months. My current close rate from discovery call is [X]%. How many discovery calls do I need per month? How many outreach messages do I need to send? Build the reverse funnel for me.',useWhen:'Planning the 10-to-100 growth math'},
+      {num:'19',text:'Build me a simple CRM workflow for tracking my pipeline: Lead → Contacted → Discovery Call → Proposal → Won/Lost. What fields should I track? What should I review weekly?',useWhen:'Setting up your first sales pipeline'},
+      {num:'20',text:'Write a 30-day sprint plan to close my next 10 customers. What should I do every day? Break it into: outreach targets (who), messages (what), and channels (where). Be specific and actionable.',useWhen:'Planning an intensive customer acquisition sprint'},
+    ],done:false},
+    {num:5,title:'Retain & Expand',sub:'Make your first 100 customers stay and refer others',overview:'Getting to 100 customers only matters if they stay. A leaky bucket — customers churning as fast as you acquire them — kills companies. This step builds the retention loop and the expansion motion.',prompts:[
+      {num:'21',text:'What is the one moment in my product where a customer first experiences real value (the "aha moment")? How do I get every new customer to that moment within their first 7 days?',useWhen:'Designing customer onboarding'},
+      {num:'22',text:'Write a 30-day onboarding email sequence for a new customer. Each email should: celebrate a milestone, teach one key feature, and ask one question to understand their progress.',useWhen:'Building automated onboarding sequences'},
+      {num:'23',text:'I have [N] customers. Design a monthly health check: which customers are at risk of churning (signals), what I say to them, and what I offer to keep them.',useWhen:'Building customer health monitoring'},
+      {num:'24',text:'Write a customer success interview script I can use with my happiest customers. I want to: understand what they value most, get a testimonial, and identify upsell opportunities.',useWhen:'Running customer success interviews'},
+      {num:'25',text:'Design an expansion revenue motion: how do I get existing customers to upgrade, buy more seats, or buy additional products? What triggers the conversation? Write the exact message.',useWhen:'Building upsell and expansion revenue'},
+    ],done:false},
+  ],
+  4:[
+    {num:1,title:'Problem Validation',sub:'Prove the problem is real, widespread, and painful enough to pay for',overview:'Building without validation is the most common founder mistake. You need evidence — not opinion — that the problem you\'re solving is real, frequent, and painful enough that people will pay to fix it. Validation before building saves months.',prompts:[
+      {num:'01',text:'Write a problem hypothesis in this format: "[Target customer] struggles with [specific problem] when [specific situation occurs]. Currently they solve it by [current solution] which is bad because [specific reason]. We believe [X]% of [target market] has this problem."',useWhen:'Articulating your problem hypothesis before validation'},
+      {num:'02',text:'Design a 10-question customer discovery interview script focused purely on the problem — not my solution. Questions should uncover: frequency, severity, current workarounds, and willingness to pay. No leading questions.',useWhen:'Running problem discovery interviews'},
+      {num:'03',text:'I ran [N] customer interviews. Here are my notes: [paste notes]. Synthesise the key findings: what problem patterns appeared in more than 50% of interviews, what surprised me, and what my hypothesis got wrong.',useWhen:'Synthesising interview data after discovery'},
+      {num:'04',text:'What are 3 existing behaviours that prove this problem is real without me having to ask anyone? (e.g. people paying for workarounds, Reddit threads complaining about X, job postings looking for someone to solve X manually)',useWhen:'Finding existing evidence of a problem without primary research'},
+      {num:'05',text:'How do I validate willingness to pay before building anything? Design 3 validation experiments I can run in the next 2 weeks — each one tests a different aspect of the problem-solution fit.',useWhen:'Designing pre-build validation experiments'},
+    ],done:false,active:true},
+    {num:2,title:'Solution Validation',sub:'Test your solution concept before writing a line of code',overview:'Validating the problem is only half the battle. You also need to validate that YOUR solution — not just a solution — is something people want and will pay for. This step tests your approach before you invest months building it.',prompts:[
+      {num:'06',text:'Describe my proposed solution in 2 sentences. Now write the strongest possible case AGAINST building it — why it won\'t work, why customers won\'t buy it, why competitors will win.',useWhen:'Steel-manning your solution before committing to build'},
+      {num:'07',text:'Design a landing page test to validate my solution concept. What headline, subheadline, and CTA should I use? What would a 3% conversion rate tell me? What would 0.5% tell me?',useWhen:'Building a validation landing page'},
+      {num:'08',text:'I want to do a concierge MVP — manually deliver the value my product promises before building it. Design the concierge playbook: what I do manually, how I deliver it, what I charge, and what I learn from each delivery.',useWhen:'Running a concierge MVP to validate solution value'},
+      {num:'09',text:'Write a solution validation interview script for customers who have seen my demo or mockup. I want to understand: does this solve the right problem, what features matter most, what\'s confusing, and would they pay [price]?',useWhen:'Validating solution with customer interviews post-demo'},
+      {num:'10',text:'I need to validate pricing before launch. Design a pricing conversation script and 3 different pricing experiments I can run with 10 potential customers each to find the right price point.',useWhen:'Validating pricing before product launch'},
+    ],done:false},
+    {num:3,title:'Build Signal Metrics',sub:'Define what PMF looks like before you claim you have it',overview:'Product-Market Fit is not a feeling. It is a measurable state. Before you can claim PMF, you need to define what the signals are for YOUR product — the specific metrics that prove customers love what you\'ve built enough to stick and refer.',prompts:[
+      {num:'11',text:'What is the Sean Ellis test score for my product? Write the survey I should send to my first 50 active users and define what "very disappointed" threshold I\'m aiming for and why.',useWhen:'Running the classic PMF survey'},
+      {num:'12',text:'Design my retention curve analysis. What does "active" mean for my product (daily/weekly/monthly)? What does a healthy D30 retention look like? What cohort analysis should I run to spot PMF?',useWhen:'Building retention metrics to measure PMF'},
+      {num:'13',text:'I have [N] customers. Calculate my NPS from these scores: [paste scores]. For each detractor, what follow-up question should I ask to understand why? For each promoter, how do I turn them into referral sources?',useWhen:'Calculating and acting on NPS data'},
+      {num:'14',text:'Write a weekly product metrics dashboard template. What are the 5-7 metrics that would tell me whether I\'m moving toward or away from PMF? For each: definition, target, and what to do if it\'s below target.',useWhen:'Building your PMF measurement dashboard'},
+      {num:'15',text:'My churn rate is [X]% monthly. Diagnose: is this a product problem, an ICP problem, or an onboarding problem? Design 3 experiments to identify the root cause and reduce churn by 30% in 60 days.',useWhen:'Diagnosing and fixing early churn'},
+    ],done:false},
+    {num:4,title:'Iterate to Fit',sub:'Make systematic improvements until the metrics confirm PMF',overview:'PMF is not a single moment — it\'s a direction you move in through systematic iteration. This step builds the feedback loop that takes you from initial signal to confirmed fit: collect feedback, prioritise ruthlessly, ship fast, measure.',prompts:[
+      {num:'16',text:'Design my product feedback system: how do I collect feedback from users every week (in-app, interviews, support tickets), how do I synthesise it, and how do I decide what to build next?',useWhen:'Building a systematic product feedback loop'},
+      {num:'17',text:'I have [N] pieces of feature feedback. Help me prioritise using the RICE framework (Reach, Impact, Confidence, Effort). For each feature request: estimate each dimension and rank the list.',useWhen:'Prioritising your feature backlog ruthlessly'},
+      {num:'18',text:'Write a "jobs to be done" analysis for my product. For each core use case: what job is the customer hiring my product to do, what are the functional and emotional outcomes, and what competing solutions exist?',useWhen:'Understanding the deeper motivation behind product usage'},
+      {num:'19',text:'I want to run a product experiment to test [hypothesis]. Design the A/B test: hypothesis, control vs variant, success metric, sample size needed, and how long to run it.',useWhen:'Running product experiments to improve key metrics'},
+      {num:'20',text:'Write my product roadmap for the next 90 days focused purely on moving toward PMF. For each initiative: the PMF signal it improves, the customer problem it solves, and the success metric.',useWhen:'Building a PMF-focused product roadmap'},
+    ],done:false},
+  ],
+  5:[
+    {num:1,title:'Fundraising Readiness',sub:'Know exactly when and whether to raise before you start',overview:'Fundraising is not the right move for every company at every stage. Before you talk to a single investor, you need brutal clarity on: why you need to raise, how much, from whom, and what the money buys you. This step prevents the most common fundraising mistakes.',prompts:[
+      {num:'01',text:'Should I raise funding right now? Help me evaluate: my current MRR and growth rate, runway, the market I\'m in, and what the capital would specifically buy me. Give me an honest recommendation with reasoning.',useWhen:'Deciding whether to raise funding at your current stage'},
+      {num:'02',text:'Build my fundraising target model. I want to raise $[X]. What milestones should this money get me to? What is my post-money valuation target and why? What dilution am I comfortable with?',useWhen:'Setting your fundraising target and valuation expectations'},
+      {num:'03',text:'Write my fundraising narrative in 5 sentences: the problem and why it\'s massive, my solution and why it\'s different, the traction I have today, the market size, and what I\'m going to do with the money.',useWhen:'Building your core fundraising story before investor conversations'},
+      {num:'04',text:'What are the 10 most common questions a [pre-seed/seed/Series A] investor will ask me? For each question, write my honest answer and identify which ones I need to strengthen.',useWhen:'Preparing for investor Q&A sessions'},
+      {num:'05',text:'Audit my current metrics against what investors at my target stage expect. My metrics: [paste ARR, growth rate, churn, CAC, LTV, team]. What\'s strong, what\'s weak, and what do I need to improve before fundraising?',useWhen:'Auditing your metrics against investor expectations'},
+    ],done:false,active:true},
+    {num:2,title:'Pitch Deck',sub:'Build a deck that gets meetings and closes rounds',overview:'The pitch deck is not a presentation — it is a sales document. Its job is to get you a second meeting, not to explain everything about your business. Investors see hundreds of decks. Yours needs to be clear, compelling, and leave them wanting to know more.',prompts:[
+      {num:'06',text:'Write the problem slide for my pitch deck. My target investor is [describe]. The problem in one sentence. Why it\'s a big, urgent problem. What the world looks like without a solution. Make me feel the pain.',useWhen:'Writing the problem slide of your pitch deck'},
+      {num:'07',text:'Write the solution slide. Explain what my product does in plain language that a non-technical investor understands. What\'s the "aha moment" of understanding? What makes it different from existing solutions?',useWhen:'Writing the solution slide of your pitch deck'},
+      {num:'08',text:'Write the traction slide narrative for my deck. My traction: [paste your MRR, growth, customers, retention, any key milestones]. Present this in the most compelling way — lead with the most impressive number.',useWhen:'Writing the traction slide of your pitch deck'},
+      {num:'09',text:'Write the market size slide. My market: [describe]. Calculate TAM, SAM, and SOM using a bottoms-up approach (not just a market research report number). Explain my logic.',useWhen:'Calculating and presenting market size credibly'},
+      {num:'10',text:'Write the ask slide and use of funds. I\'m raising $[X]. Break down exactly how I\'ll spend it across team, product, and GTM. What milestone does this get me to? What does hitting that milestone enable?',useWhen:'Writing the ask and use of funds slide'},
+    ],done:false},
+    {num:3,title:'Investor Targeting',sub:'Find and qualify the right investors for your stage and sector',overview:'Fundraising is a sales funnel. You need a pipeline of 50-100 qualified investors, a systematic outreach approach, and a way to track conversations. The investors who say yes are rarely the first ones you talk to.',prompts:[
+      {num:'11',text:'Build my investor target list criteria. I\'m raising a [pre-seed/seed/Series A] round for a [category] company. What types of investors should I prioritise? What check sizes, portfolio focus, and stage should I look for?',useWhen:'Defining your ideal investor criteria before building a list'},
+      {num:'12',text:'I want to approach [specific investor/fund]. Research their portfolio and investment thesis. Write a personalised cold outreach message that: references a specific portfolio company, explains why I\'m relevant to their thesis, and makes a clear ask.',useWhen:'Writing personalised cold outreach to specific investors'},
+      {num:'13',text:'Write a warm introduction request I can send to someone who knows [investor name]. Include what to say about me, why this investor is a fit, and make it easy for them to forward.',useWhen:'Requesting warm introductions to investors'},
+      {num:'14',text:'Design my investor pipeline tracker. What stages should I track conversations through? What fields are essential? What should I review weekly to know if my fundraise is on track?',useWhen:'Setting up your investor CRM and pipeline'},
+      {num:'15',text:'An investor passed on my deal. Write the follow-up message I send to: thank them for their time, ask what would need to change for them to invest, and keep the relationship warm for a future round.',useWhen:'Following up after an investor pass'},
+    ],done:false},
+    {num:4,title:'Closing the Round',sub:'Move from verbal commitment to signed documents',overview:'Getting a verbal "yes" from an investor is only halfway there. Closing a round requires managing due diligence, negotiating terms, building momentum, and getting documents signed. This step manages the close.',prompts:[
+      {num:'16',text:'An investor said they\'re interested. What are the next steps? Write my follow-up email, the due diligence checklist I should prepare, and a timeline for closing. How do I create urgency without being pushy?',useWhen:'Managing the process after an investor says they\'re interested'},
+      {num:'17',text:'Explain the key terms in a SAFE note: valuation cap, discount rate, MFN clause, and pro-rata rights. For my raise of $[X] with a cap of $[Y], what does the investor\'s ownership look like at Series A?',useWhen:'Understanding SAFE terms before signing'},
+      {num:'18',text:'I have a lead investor committing $[X]. How do I fill the rest of the round? Write my "round is filling" message to other investors I\'ve been talking to, and design a 30-day close strategy.',useWhen:'Filling a round once you have a lead investor'},
+      {num:'19',text:'Write my investor update template for post-close monthly updates. Sections: key metrics, wins, challenges, what I need from investors, and asks. Keep it under 400 words and make investors want to read it.',useWhen:'Writing compelling post-investment monthly updates'},
+      {num:'20',text:'Build my cap table. Current ownership: [describe]. I\'m raising $[X] on a $[Y] cap SAFE. Show me the pre-money and post-money cap table at the next priced round assuming $[Z] Series A valuation.',useWhen:'Modelling your cap table through multiple rounds'},
+    ],done:false},
+    {num:5,title:'Post-Raise Execution',sub:'Make the most of your funding and report to investors properly',overview:'Most founders underestimate how much the dynamic changes post-raise. You now have obligations — to your investors, to your team, and to your own milestones. This step sets up the systems that keep you accountable and on track.',prompts:[
+      {num:'21',text:'I just closed my round. Write a 90-day post-raise operating plan: what I\'m hiring for (roles, order, criteria), what product milestones I\'m committing to, and what GTM experiment I\'m running first.',useWhen:'Planning the first 90 days after closing a funding round'},
+      {num:'22',text:'Write my first board update since closing. Format: company snapshot (metrics), progress against milestones, key decisions I need board input on, and what I need from the board over the next 30 days.',useWhen:'Writing your first board update post-close'},
+    ],done:false},
+  ],
+  6:[
+    {num:1,title:'Financial Model',sub:'Build a model that shows exactly where your money goes and when it runs out',overview:'Every founder needs to know three numbers at all times: cash in the bank, monthly burn, and months of runway. This step builds the financial model that gives you those numbers and lets you plan scenarios.',prompts:[
+      {num:'01',text:'Build me a startup financial model template. I need: monthly revenue projection (MRR), cost breakdown (payroll, tools, marketing, infrastructure), gross margin calculation, and cash position by month. Format as a table.',useWhen:'Building your first financial model from scratch'},
+      {num:'02',text:'My current financials: Revenue $[X]/month, Payroll $[Y]/month, Other costs $[Z]/month. Calculate my gross margin, net burn, and exact runway in months. If I grow revenue at [N]% MoM, when do I reach breakeven?',useWhen:'Calculating your current burn and runway'},
+      {num:'03',text:'Build 3 scenarios for my next 12 months: conservative (0% growth), base case ([X]% MoM), and optimistic ([Y]% MoM). For each: end-of-year ARR, cash position, and whether I need to raise or cut costs.',useWhen:'Building financial scenarios to plan for different futures'},
+      {num:'04',text:'I need to reduce burn by 30% without killing growth. Analyse my cost structure: [paste costs]. Which costs can be cut immediately, which should be deferred, and which are untouchable? Give me a prioritised cut list.',useWhen:'Reducing burn rate while protecting growth'},
+      {num:'05',text:'Design my monthly financial review process. What 5-7 numbers should I look at every month? What does each number tell me? What action does each trigger if it\'s off track?',useWhen:'Building your monthly financial discipline'},
+    ],done:false,active:true},
+    {num:2,title:'Revenue Forecasting',sub:'Project revenue accurately and make decisions from the data',overview:'Forecasting is not about being right — it is about understanding the assumptions that drive your growth. When your forecast is wrong, it tells you something important about your business. This step builds a forecasting system that improves your decisions.',prompts:[
+      {num:'06',text:'Build my revenue forecast for the next 6 months. Inputs: current MRR $[X], average contract value $[Y], current monthly churn [Z]%, pipeline of [N] deals at [X]% close rate. Project month-by-month MRR.',useWhen:'Building a bottoms-up revenue forecast'},
+      {num:'07',text:'I missed my revenue forecast last month by [X]%. Diagnose: was this a pipeline problem, a close rate problem, a churn problem, or an ACV problem? For the primary cause, what do I change this month?',useWhen:'Diagnosing a revenue forecast miss'},
+      {num:'08',text:'Design my sales funnel metrics. From [traffic/leads] to [customers], what are my conversion rates at each stage? What does improving each stage by 10% do to my annual revenue?',useWhen:'Building and optimising your sales funnel model'},
+    ],done:false},
+    {num:3,title:'Extend Runway',sub:'Get more time without necessarily raising more money',overview:'Runway extension is not just about cutting costs. It is about making strategic choices about what you invest in and what you stop. Sometimes the best way to extend runway is to grow faster. This step evaluates both approaches.',prompts:[
+      {num:'09',text:'I have [N] months of runway. What are my top 5 options to extend it to [M] months? For each option: estimated impact on runway, time to implement, and risk to growth.',useWhen:'Evaluating runway extension options'},
+      {num:'10',text:'I want to increase MRR by 30% in 60 days to extend runway without cutting costs. Based on my current customer base of [N] customers at $[X] ACV, design the fastest path: upsells, new logos, or reactivations?',useWhen:'Growing your way out of a short runway situation'},
+      {num:'11',text:'Design a pricing increase strategy. My current price is $[X]/month. I want to move to $[Y]/month. How do I communicate this to existing customers? What grandfathering or migration plan should I offer?',useWhen:'Implementing a price increase to improve unit economics'},
+      {num:'12',text:'Build my break-even analysis. At what MRR do my revenues cover all costs? What is my path to that number in months, and what are the three most important actions to get there faster?',useWhen:'Planning your path to break-even'},
+    ],done:false},
+  ],
+  7:[
+    {num:1,title:'Keyword Strategy',sub:'Find the keywords your ICP searches that you can actually rank for',overview:'Most founders target keywords that are too competitive, too informational, or don\'t attract buyers. This step builds a keyword strategy around search terms that signal purchase intent and have difficulty scores you can realistically win.',prompts:[
+      {num:'01',text:'My product is [describe]. My ICP is [describe]. Generate 30 keyword ideas across these categories: (1) problem-aware queries ("how to fix X"), (2) solution-aware queries ("best tool for X"), (3) comparison queries ("X vs Y"), and (4) alternative queries ("X alternative"). ',useWhen:'Generating initial keyword ideas before using tools'},
+      {num:'02',text:'Here are my top 20 keyword candidates with their search volumes and difficulty scores: [paste data]. Help me select the best 8 to target first. Criteria: buyer intent, achievable difficulty (KD < 40), and relevance to my ICP.',useWhen:'Selecting keywords to target from your research list'},
+      {num:'03',text:'Build my SEO content cluster. Primary keyword: [keyword]. Give me: 1 pillar page topic, 6 cluster article topics, and 2 comparison pages. For each: title, target keyword, estimated word count, and unique angle.',useWhen:'Building your first topic cluster for SEO authority'},
+      {num:'04',text:'I want to write a [competitor] vs [my product] comparison page that ranks and converts. My advantages: [list]. Their advantages: [list]. Write a fair, specific comparison that helps the right buyer choose — don\'t be sycophantic.',useWhen:'Writing a competitor comparison page for commercial intent SEO'},
+      {num:'05',text:'Analyse these 5 URLs that rank #1-5 for my target keyword [keyword]: [paste URLs or titles]. What topics do they all cover? What do they all miss? Where is my unique angle to outrank them?',useWhen:'Analysing competitors before writing an SEO article'},
+    ],done:false,active:true},
+    {num:2,title:'Content Production',sub:'Write SEO content that ranks and converts in the shortest time',overview:'AI has made content production fast. What it has not changed is what makes content rank: genuine depth, specific examples, and a unique point of view that the top 10 results don\'t already provide. This step produces that content efficiently.',prompts:[
+      {num:'06',text:'Write a 1,500-word SEO article targeting "[keyword]" for [ICP]. Structure: clear answer in first paragraph, subheadings every 250 words, 3 specific examples, one counterintuitive point, and a strong CTA. Include meta title and description.',useWhen:'Writing an SEO-optimised article from a keyword brief'},
+      {num:'07',text:'I have this rough draft article: [paste]. Edit it for SEO: (1) does the intro immediately answer the search query? (2) are subheadings keyword-rich? (3) are there enough specific examples? (4) is there internal linking opportunity? Give me a revised version.',useWhen:'Editing a draft article for SEO before publishing'},
+      {num:'08',text:'Write 5 meta title + meta description combinations for this article: [paste title and summary]. Each title under 60 characters, each description under 160 characters, include the target keyword, and make them clickable.',useWhen:'Writing meta tags for your SEO articles'},
+      {num:'09',text:'Turn this blog article into: (1) a LinkedIn post, (2) a Twitter/X thread (8 tweets), and (3) a 3-minute Loom video script. Each should stand alone and drive traffic back to the article.',useWhen:'Repurposing a blog article across distribution channels'},
+      {num:'10',text:'I published [N] articles 3+ months ago with little traffic. Here are their topics and current rankings: [paste]. Identify: which have ranking potential but need improvement, which should be combined, and which should be deleted.',useWhen:'Auditing and improving existing content to unlock traffic'},
+    ],done:false},
+    {num:3,title:'Link Building',sub:'Build domain authority through backlinks that actually move rankings',overview:'Without backlinks, even great content struggles to rank. Links are Google\'s primary signal of trust and authority. This step builds a systematic approach to earning links — without spammy tactics that get you penalised.',prompts:[
+      {num:'11',text:'I wrote a [topic] article. Who would naturally link to it? Give me 10 specific types of websites or publications, and for each: why they\'d link to me, how to find their editor or writer, and what outreach angle to use.',useWhen:'Identifying link building targets for a specific article'},
+      {num:'12',text:'Write a HARO (Help a Reporter Out) pitch template for my area of expertise: [describe]. The pitch should: demonstrate specific expertise, offer a genuine quote or data point, and be under 150 words.',useWhen:'Getting backlinks through journalist query responses'},
+      {num:'13',text:'I want to build backlinks through original data or research. My product touches [data type]. What research report or data study could I produce that journalists and bloggers in my space would want to link to?',useWhen:'Planning a linkable asset like a data study or research report'},
+    ],done:false},
+    {num:4,title:'Track & Compound',sub:'Measure what\'s working and double down systematically',overview:'SEO compounds — but only if you consistently measure, improve, and expand what\'s working. This step builds the measurement system and the compounding habit that turns early rankings into consistent organic lead flow.',prompts:[
+      {num:'14',text:'Set up my SEO measurement system. What should I track monthly in Google Search Console and Google Analytics? Build me a simple monthly SEO review template with: rankings to monitor, traffic targets, and what actions to take if numbers drop.',useWhen:'Building your monthly SEO review process'},
+      {num:'15',text:'My article on [topic] ranks at position [N] for [keyword] after [X] months. What are the most likely reasons it\'s not on page 1? Give me 5 specific improvements I can make to this article to improve its ranking.',useWhen:'Improving an underperforming article that\'s stuck off page 1'},
+    ],done:false},
+  ],
+  8:[
+    {num:1,title:'Map Your Workflows',sub:'Identify the five workflows that consume the most founder time',overview:'You can\'t automate what you haven\'t mapped. Before building any automation, you need a clear picture of where your time actually goes — and which workflows, if automated, would give you the highest return. This step creates the map.',prompts:[
+      {num:'01',text:'I spend time on these recurring tasks: [list your weekly recurring tasks]. For each task: how many times per week, how long it takes, and how much variation there is. Identify the top 5 candidates for automation by time saved.',useWhen:'Identifying your highest-value automation opportunities'},
+      {num:'02',text:'Map my [specific workflow, e.g. "lead qualification"] as a step-by-step process. For each step: what triggers it, what data is needed, what decision is made, what the output is. Identify which steps are purely mechanical vs require human judgment.',useWhen:'Mapping a specific workflow before automating it'},
+      {num:'03',text:'For my top 3 time-consuming workflows, evaluate: (1) can this be fully automated, (2) can it be partially automated with human-in-the-loop, or (3) does it require full human judgment? For (1) and (2), what tools would I use?',useWhen:'Evaluating automation feasibility for your workflows'},
+      {num:'04',text:'Build an automation ROI calculator for [workflow]. Time spent manually per month: [X hours]. Cost of my time per hour: $[Y]. Setup time for automation: [Z hours]. Monthly subscription cost: $[W]. Calculate payback period and annual savings.',useWhen:'Calculating the ROI of a specific automation before building it'},
+      {num:'05',text:'What are the risks of automating [workflow]? What could go wrong, what\'s the failure mode, and how do I build in human checkpoints to catch errors before they become problems?',useWhen:'Identifying automation risks before deploying'},
+    ],done:false,active:true},
+    {num:2,title:'Build Automations',sub:'Build your five automations in Zapier, Make, or n8n',overview:'With your workflows mapped and prioritised, it\'s time to build. This step is about execution — choosing the right tool for each automation, building it correctly, and testing before deploying at scale.',prompts:[
+      {num:'06',text:'Design the Zapier/Make automation for [workflow]. I need: the trigger (what starts the automation), the steps in order, the tools connected (e.g. Gmail → Notion → Slack), and any conditional logic (if X then Y, else Z).',useWhen:'Designing a specific automation before building it in Zapier or Make'},
+      {num:'07',text:'Write the system prompt for an AI step in my automation. The AI needs to: receive [input], perform [task], and output [structured format]. Make the prompt specific enough that it produces consistent, reliable output every time.',useWhen:'Writing AI prompts for AI steps inside automations'},
+      {num:'08',text:'My automation failed and I\'m getting [error description]. The workflow is [describe]. Diagnose: what is causing the error, what data is missing or formatted wrong, and how do I fix it.',useWhen:'Debugging a broken automation'},
+      {num:'09',text:'I built an automation for [workflow]. Before I run it on real data, design a testing protocol: what test cases to run, what edge cases to check, what the expected output is for each, and what failure looks like.',useWhen:'Testing an automation before deploying it at scale'},
+      {num:'10',text:'Write an SOP (Standard Operating Procedure) for [automated workflow] so my team knows: what the automation does, when it runs, what to do when it fails, and how to manually override it.',useWhen:'Documenting an automation for team use'},
+    ],done:false},
+    {num:3,title:'Measure & Expand',sub:'Track time saved and build your next five automations',overview:'Automation is a compounding investment. Each workflow you automate frees up time to build the next one. This step measures the impact of what you\'ve built and systematically expands your automation stack.',prompts:[
+      {num:'11',text:'I\'ve built [N] automations. Calculate total time saved per month: [paste each automation and estimated time saved]. What is the dollar value of that time at $[X]/hour? What should I automate next with that freed time?',useWhen:'Measuring the cumulative ROI of your automation stack'},
+      {num:'12',text:'My team is spending time on [recurring task] that I haven\'t automated yet. Design an AI-assisted workflow: which parts stay human, which parts get an AI first pass, and what the review process looks like.',useWhen:'Designing AI-assisted workflows for tasks that can\'t be fully automated'},
+      {num:'13',text:'Build me a monthly automation review process. What should I check each month: which automations are failing, which are running as expected, which have new opportunities to extend, and which should be sunset.',useWhen:'Building a maintenance system for your automation stack'},
+    ],done:false},
+  ],
 };
 
-/* ═══════════════════════════════════════════════
-   AI BUILDER — Chat-based creator for Playbooks & Agents
-   Opens from either tab via "Build with AI" button
-   ═══════════════════════════════════════════════ */
 
 const PB_BUILDER_FLOW=[
   {key:'goal',q:'What business outcome do you want this Playbook to achieve?',placeholder:'e.g. Acquire my first 100 paying customers, Launch my SaaS product, Close a pre-seed round…',type:'text'},
@@ -1651,7 +1851,9 @@ function AIBuilderModal({type,onClose,toast}){
   </>;
 }
 
-function PlaybooksPage({toast}){
+
+
+function PlaybooksPage({toast,deepLink,onClearDeepLink}){
   const[filter,setFilter]=useState('All');
   const[view,setView]=useState('library');
   const[openPB,setOpenPB]=useState(null);
@@ -1662,6 +1864,15 @@ function PlaybooksPage({toast}){
   const[searchVal,setSearchVal]=useState('');
   const[searchFocused,setSearchFocused]=useState(false);
   const searchRef=useRef();
+
+  // Deep-link: auto-open specific playbook modal when navigated from search/home
+  useEffect(()=>{
+    if(deepLink&&deepLink.type==='playbook'&&deepLink.id){
+      const pb=PLAYBOOKS.find(p=>p.id===deepLink.id);
+      if(pb){setOpenPB(pb);setView('library');}
+      if(onClearDeepLink)onClearDeepLink();
+    }
+  },[deepLink]);
 
   const cats=['All','Product','Marketing','Growth','Finance','Operations'];
 
@@ -1958,17 +2169,39 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
     done:i<pb.done,active:i===pb.done
   }));
 
-  const[currentIdx,setCurrentIdx]=useState(Math.max(0,steps.findIndex(p=>p.active)));
-  const[activeTab,setActiveTab]=useState('prompts'); // 'read' | 'prompts' | 'notes'
-  const[notes,setNotes]=useState({});
+  // Persist step progress per playbook
+  const progressKey=`wt_pb_step_${pb.id}`;
+  const notesKey=`wt_pb_notes_${pb.id}`;
+  const doneKey=`wt_pb_done_${pb.id}`;
+
+  const[currentIdx,setCurrentIdx]=useState(()=>{
+    try{const saved=localStorage.getItem(progressKey);return saved!==null?parseInt(saved):Math.max(0,steps.findIndex(p=>p.active));}
+    catch{return Math.max(0,steps.findIndex(p=>p.active));}
+  });
+  const[doneSteps,setDoneSteps]=useState(()=>{
+    try{const saved=localStorage.getItem(doneKey);return saved?JSON.parse(saved):steps.map(s=>s.done);}
+    catch{return steps.map(s=>s.done);}
+  });
+  const[activeTab,setActiveTab]=useState('prompts');
+  const[notes,setNotes]=useState(()=>{
+    try{const saved=localStorage.getItem(notesKey);return saved?JSON.parse(saved):{};} catch{return {};}
+  });
   const[copied,setCopied]=useState(null);
   const[showComplete,setShowComplete]=useState(false);
 
-  const cur=steps[currentIdx];
-  const doneCount=steps.filter(p=>p.done).length;
-  const pct=Math.round((doneCount/steps.length)*100);
-  const hasReading=cur.reading&&cur.reading.length>0;
-  const hasStructuredPrompts=Array.isArray(cur.prompts)&&cur.prompts.length>0&&typeof cur.prompts[0]==='object';
+  // Persist step index whenever it changes
+  useEffect(()=>{try{localStorage.setItem(progressKey,String(currentIdx));}catch{};},[currentIdx,progressKey]);
+  // Persist notes whenever they change
+  useEffect(()=>{try{localStorage.setItem(notesKey,JSON.stringify(notes));}catch{};},[notes,notesKey]);
+  // Persist done steps
+  useEffect(()=>{try{localStorage.setItem(doneKey,JSON.stringify(doneSteps));}catch{};},[doneSteps,doneKey]);
+
+  const stepsWithDone=stepsWithDone.map((s,i)=>({...s,done:doneSteps[i]||false,active:i===currentIdx}));
+  const cur=stepsWithDone[currentIdx];
+  const doneCount=doneSteps.filter(Boolean).length;
+  const pct=Math.round((doneCount/stepsWithDone.length)*100);
+  const hasReading=cur&&cur.reading&&cur.reading.length>0;
+  const hasStructuredPrompts=cur&&Array.isArray(cur.prompts)&&cur.prompts.length>0&&typeof cur.prompts[0]==='object';
 
   const copyPrompt=(text,idx)=>{
     navigator.clipboard?.writeText(text).catch(()=>{});
@@ -1981,7 +2214,10 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
   };
 
   const markDone=()=>{
-    if(currentIdx<steps.length-1){
+    const newDone=[...doneSteps];
+    newDone[currentIdx]=true;
+    setDoneSteps(newDone);
+    if(currentIdx<stepsWithDone.length-1){
       setShowComplete(true);
       setTimeout(()=>{
         setShowComplete(false);
@@ -1989,7 +2225,9 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
         setActiveTab('prompts');
         toast(`Step ${cur.num} complete! 🎉`,null,'success');
       },2000);
-    } else onComplete(pb);
+    } else {
+      setTimeout(()=>onComplete(pb),400);
+    }
   };
 
   return <div style={{maxWidth:1020,margin:'0 auto'}}>
@@ -2011,14 +2249,14 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
     <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:'12px 18px',marginBottom:12,display:'flex',alignItems:'center',gap:16}}>
       <span style={{fontSize:11,fontWeight:700,letterSpacing:'0.07em',color:C.t4,textTransform:'uppercase',fontFamily:C.sans,flexShrink:0}}>Overall Progress</span>
       <div style={{flex:1}}>
-        <ProgressBar val={doneCount} max={steps.length} col={pb.col} h={5}/>
+        <ProgressBar val={doneCount} max={stepsWithDone.length} col={pb.col} h={5}/>
       </div>
-      <span style={{fontSize:12,fontWeight:700,color:pb.col,fontFamily:C.mono,flexShrink:0}}>{doneCount}/{steps.length} steps</span>
+      <span style={{fontSize:12,fontWeight:700,color:pb.col,fontFamily:C.mono,flexShrink:0}}>{doneCount}/{stepsWithDone.length} steps</span>
     </div>
 
     {/* ── HORIZONTAL STEP NAV ── */}
     <div style={{display:'flex',gap:6,marginBottom:18,overflowX:'auto',paddingBottom:2}}>
-      {steps.map((s,i)=>(
+      {stepsWithDone.map((s,i)=>(
         <button key={s.num} onClick={()=>{setCurrentIdx(i);setActiveTab('prompts');}}
           style={{flex:'1 0 auto',minWidth:72,padding:'9px 8px',borderRadius:9,border:`1.5px solid ${i===currentIdx?pb.col:s.done?C.green+'50':C.border}`,background:i===currentIdx?pb.col+'12':s.done?C.greenBg:'transparent',cursor:'pointer',transition:'all .15s',fontFamily:C.sans,textAlign:'center'}}
           onMouseEnter={e=>{if(i!==currentIdx)e.currentTarget.style.borderColor=pb.col+'40';}}
@@ -2045,7 +2283,7 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
 
         {/* Step header */}
         <div style={{background:`linear-gradient(135deg,${pb.col} 0%,${pb.col}CC 100%)`,borderRadius:'14px 14px 0 0',padding:'18px 22px'}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.09em',textTransform:'uppercase',color:'rgba(255,255,255,.6)',marginBottom:6,fontFamily:C.sans}}>Step {cur.num} of {steps.length}</div>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.09em',textTransform:'uppercase',color:'rgba(255,255,255,.6)',marginBottom:6,fontFamily:C.sans}}>Step {cur.num} of {stepsWithDone.length}</div>
           <div style={{fontSize:22,fontWeight:800,color:'#fff',fontFamily:C.heading,lineHeight:1.2,marginBottom:6}}>{cur.title}</div>
           <div style={{fontSize:13,color:'rgba(255,255,255,.75)',fontFamily:C.sans,lineHeight:1.5}}>{cur.sub}</div>
         </div>
@@ -2077,12 +2315,12 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
                 <div style={{fontSize:11,color:C.t4,fontFamily:C.sans,marginTop:2}}>Copy any prompt → paste into Claude, ChatGPT, or any AI tool</div>
               </div>
               <span style={{fontSize:11,fontWeight:600,background:pb.col+'14',color:pb.col,padding:'3px 10px',borderRadius:20,fontFamily:C.mono,flexShrink:0}}>
-                {Array.isArray(cur.prompts)?cur.prompts.length:0} prompts
+                {cur&&Array.isArray(cur.prompts)?cur.prompts.length:0} prompts
               </span>
             </div>
 
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
-              {(Array.isArray(cur.prompts)?cur.prompts:[]).map((p,i)=>{
+              {(cur&&Array.isArray(cur.prompts)?cur.prompts:[]).map((p,i)=>{
                 const promptText=typeof p==='object'?p.text:p;
                 const promptNum=typeof p==='object'?p.num:`0${i+1}`;
                 const useWhen=typeof p==='object'?p.useWhen:null;
@@ -2198,8 +2436,8 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
             onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=currentIdx===0?C.t4:C.t2;}}>
             <Icon name="arrowLeft" size={13}/> Previous
           </button>
-          <div style={{flex:1,textAlign:'center',fontSize:11,color:C.t4,fontFamily:C.sans}}>Step {currentIdx+1} of {steps.length}</div>
-          {currentIdx<steps.length-1?<button onClick={()=>{setCurrentIdx(Math.min(steps.length-1,currentIdx+1));setActiveTab('prompts');}}
+          <div style={{flex:1,textAlign:'center',fontSize:11,color:C.t4,fontFamily:C.sans}}>Step {currentIdx+1} of {stepsWithDone.length}</div>
+          {currentIdx<stepsWithDone.length-1?<button onClick={()=>{setCurrentIdx(Math.min(stepsWithDone.length-1,currentIdx+1));setActiveTab('prompts');}}
             style={{display:'flex',alignItems:'center',gap:6,padding:'9px 16px',borderRadius:9,border:`1px solid ${C.border}`,background:C.surface,color:C.t2,fontSize:12,fontWeight:500,fontFamily:C.sans,cursor:'pointer',transition:'all .15s'}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor=pb.col;e.currentTarget.style.color=pb.col;}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.t2;}}>
@@ -2220,7 +2458,7 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
             </span>
           </div>
           <div style={{padding:'8px 8px'}}>
-            {(Array.isArray(cur.prompts)?cur.prompts:[]).map((p,i)=>{
+            {(cur&&Array.isArray(cur.prompts)?cur.prompts:[]).map((p,i)=>{
               const num=typeof p==='object'?p.num:`0${i+1}`;
               const text=typeof p==='object'?p.text:p;
               const short=text.slice(0,52)+(text.length>52?'…':'');
@@ -2244,7 +2482,7 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
           <div style={{borderTop:`1px solid ${C.border}`,padding:'8px 10px'}}>
             <div style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:C.t4,marginBottom:6,fontFamily:C.sans,paddingLeft:4}}>Jump to Step</div>
             <div style={{display:'flex',flexDirection:'column',gap:1}}>
-              {steps.map((s,i)=>(
+              {stepsWithDone.map((s,i)=>(
                 <button key={s.num} onClick={()=>{setCurrentIdx(i);setActiveTab('prompts');}}
                   style={{width:'100%',display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:7,background:i===currentIdx?pb.col+'10':'transparent',border:'none',cursor:'pointer',transition:'background .12s',textAlign:'left'}}
                   onMouseEnter={e=>{if(i!==currentIdx)e.currentTarget.style.background=C.bg;}}
@@ -2260,7 +2498,7 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
             <div style={{height:3,background:C.border,borderRadius:2,marginTop:8,overflow:'hidden'}}>
               <div style={{height:'100%',background:pb.col,borderRadius:2,width:`${pct}%`,transition:'width .4s'}}/>
             </div>
-            <div style={{fontSize:9,color:C.t4,fontFamily:C.sans,marginTop:4,textAlign:'right'}}>{doneCount}/{steps.length} complete · {pct}%</div>
+            <div style={{fontSize:9,color:C.t4,fontFamily:C.sans,marginTop:4,textAlign:'right'}}>{doneCount}/{stepsWithDone.length} complete · {pct}%</div>
           </div>
         </div>
 
@@ -2270,7 +2508,7 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
           onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 10px 32px ${pb.col}50`;}}
           onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow=`0 6px 24px ${pb.col}35`;}}>
           <Icon name="check" size={16} color="#fff"/>
-          {currentIdx===steps.length-1?'Complete Playbook 🏆':'Mark Step Done →'}
+          {currentIdx===stepsWithDone.length-1?'Complete Playbook 🏆':'Mark Step Done →'}
         </button>
 
         {/* 3. Ask AI Strategist */}
@@ -2302,7 +2540,7 @@ function PlaybookActiveView({pb,onBack,onComplete,toast}){
             <div style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.06em',color:C.amber,marginBottom:4,fontFamily:C.sans}}>Reward</div>
             <div style={{fontSize:24,marginBottom:2}}>{pb.reward.split(' ')[0]}</div>
             <div style={{fontSize:10,fontWeight:600,color:C.text,fontFamily:C.sans,lineHeight:1.3}}>{pb.reward.split(' ').slice(1).join(' ')}</div>
-            <div style={{fontSize:10,color:C.t3,fontFamily:C.sans,marginTop:4}}>{steps.length-doneCount} steps left</div>
+            <div style={{fontSize:10,color:C.t3,fontFamily:C.sans,marginTop:4}}>{stepsWithDone.length-doneCount} steps left</div>
           </div>
         </div>
       </div>
@@ -2515,8 +2753,11 @@ function TKPreviewPanel({tk,assets,saved,onClose,onSave,toast}){
   </>;
 }
 
+
 </script>
 <script type="text/babel" data-presets="react">
+
+
 /* ═══════════════════════════════════════════════
    AI AGENTS — Full Journey Implementation
    States: idle → setup → running → results → chain
@@ -2525,7 +2766,110 @@ function TKPreviewPanel({tk,assets,saved,onClose,onSave,toast}){
 const AGENT_CHAIN={1:3,2:null,3:4,4:3,5:1,6:3}; // agent id → recommended next agent id
 const CHAIN_MSG={1:'Run Cold Outreach Agent on your 847 leads',3:'Analyse competitors of these new leads',4:'Write SEO content targeting these keywords',5:'Get Warm Intros to investors with your validated story'};
 
-function AgentsPage({toast,onTab}){
+
+const AGENTS=[
+  {id:1,name:'Get 1,000 Qualified Leads Today',shortName:'Lead Generation',icon:'target',
+   desc:'1,000 verified B2B leads in 10 min — enriched, export-ready.',roi:'~$4,000 pipeline value',
+   inputs:[{key:'industry',label:'Industry',placeholder:'e.g. SaaS, FinTech, E-commerce…'},{key:'location',label:'Location',placeholder:'e.g. India, USA, Southeast Asia…'},{key:'role',label:'Target Role',placeholder:'e.g. Founder, Head of Growth, CTO…'},{key:'companySize',label:'Company Size',placeholder:'e.g. 1–50, Seed to Series A…'}],
+   time:'10 min',credits:4,cat:'Growth',
+   whatYouGet:['1,000 verified email addresses','LinkedIn profiles for each lead','Company size and funding stage','Role and seniority filter','Export-ready CSV file'],
+   stats:[['1,000','Leads found'],['94%','Email verified'],['12','Industries'],['CSV','Format']],
+  },
+  {id:2,name:'Turn 1 Video Into 30 Content Pieces',shortName:'Content Repurposing',icon:'pencil',
+   desc:'1 video to LinkedIn posts, newsletter, Twitter thread, and more automatically.',roi:'~12 hours saved per video',
+   inputs:[{key:'videoUrl',label:'Video URL or Transcript',placeholder:'Paste YouTube/Loom URL or video transcript…'},{key:'brand',label:'Brand Voice',placeholder:'e.g. Professional, Conversational, Bold…'},{key:'audience',label:'Target Audience',placeholder:'e.g. B2B founders, SaaS marketers…'}],
+   time:'8 min',credits:2,cat:'Marketing',
+   whatYouGet:['10 LinkedIn posts (different angles)','1 email newsletter draft','3 Twitter/X threads','5 short-form hooks','1 blog article outline'],
+   stats:[['30','Content pieces'],['5','Formats'],['10','LinkedIn posts'],['12h','Time saved']],
+  },
+  {id:3,name:'Book 50 Discovery Calls This Week',shortName:'Cold Outreach',icon:'envelope',
+   desc:'Personalised email sequences written and ready to send for every lead.',roi:'~20 booked calls expected',
+   inputs:[{key:'leads',label:'Lead List',placeholder:'Paste company names or describe your ICP…'},{key:'offer',label:'Your Offer',placeholder:'What problem do you solve and for whom?'},{key:'cta',label:'Call to Action',placeholder:'e.g. 15-min call, demo, free trial…'}],
+   time:'15 min',credits:3,cat:'Growth',
+   whatYouGet:['3-email sequence per lead','Personalised opening lines','Follow-up message variants','Subject line A/B options','Paste-ready into any email tool'],
+   stats:[['3','Emails per lead'],['~20','Expected replies'],['5s','Per sequence'],['Ready','To send']],
+  },
+  {id:4,name:'Full Competitor Intelligence Report',shortName:'Competitor Research',icon:'magnifying',
+   desc:'A 12-page competitive landscape report with positioning gaps in 20 minutes.',roi:'Uncover 3+ growth angles',
+   inputs:[{key:'yourUrl',label:'Your Website URL',placeholder:'https://yourcompany.com'},{key:'competitors',label:'Competitor URLs',placeholder:'competitor1.com, competitor2.com…'},{key:'focus',label:'Research Focus',placeholder:'e.g. Pricing, messaging, features, GTM…'}],
+   time:'20 min',credits:5,cat:'Research',
+   whatYouGet:['Feature comparison matrix','Pricing analysis','Messaging and positioning gaps','ICP overlap analysis','3 recommended growth angles'],
+   stats:[['12','Page report'],['5','Competitors'],['3+','Growth angles'],['PDF','Format']],
+  },
+  {id:5,name:'Rank for 10 Keywords in 30 Days',shortName:'SEO Content Writer',icon:'pencil',
+   desc:'Keyword-optimised blog articles with meta data, internal links, and SEO structure.',roi:'~500 organic visits/mo in 90 days',
+   inputs:[{key:'keywords',label:'Target Keywords',placeholder:'e.g. B2B lead generation India, SaaS pricing strategy…'},{key:'websiteUrl',label:'Your Website URL',placeholder:'https://yourcompany.com'},{key:'audience',label:'Target Audience',placeholder:'e.g. Early-stage SaaS founders…'}],
+   time:'25 min',credits:3,cat:'Marketing',
+   whatYouGet:['10 SEO-optimised articles','Meta titles and descriptions','Internal linking map','Target keyword for each article','Publish-ready markdown'],
+   stats:[['10','Articles'],['1,500','Words each'],['90 days','To rank'],['Markdown','Export']],
+  },
+  {id:6,name:'Get Warm Intros to 20 Investors',shortName:'Investor Outreach',icon:'envelope',
+   desc:'Warm intro requests and personalised cold sequences to targeted investors at your stage.',roi:'~3 investor meetings expected',
+   inputs:[{key:'stage',label:'Funding Stage',placeholder:'e.g. Pre-seed, Seed, Series A…'},{key:'sector',label:'Sector / Category',placeholder:'e.g. B2B SaaS, FinTech, Deep Tech…'},{key:'ask',label:'Raise Amount',placeholder:'e.g. $500K, $2M…'},{key:'traction',label:'Key Traction',placeholder:'e.g. $10K MRR, 50 customers, 3x YoY growth…'}],
+   time:'30 min',credits:4,cat:'Fundraising',
+   whatYouGet:['20 targeted investor profiles','Warm intro request templates','Cold outreach sequences','LinkedIn connection messages','Follow-up drip (3 touches)'],
+   stats:[['20','Investors targeted'],['3','Meetings expected'],['2','Message types'],['Personalised','For each']],
+  },
+];
+
+const AGENT_CHAIN={1:3,2:null,3:4,4:5,5:1,6:null};
+const CHAIN_LABEL={1:'Write cold outreach sequences for your 1,000 leads',3:'Research competitors found in your lead list',4:'Target SEO keywords uncovered in the research',5:'Find leads from investors actively funding your sector'};
+
+const AGENT_RESULTS={
+  1:{leads:[
+    {name:'Rahul Sharma',company:'BuildStack AI',role:'Co-Founder & CEO',email:'rahul@buildstack.ai',stage:'Pre-seed',employees:'8',verified:true},
+    {name:'Priya Nair',company:'DataLoop',role:'Founder',email:'priya@dataloop.in',stage:'Seed · YC W24',employees:'12',verified:true},
+    {name:'Arjun Mehta',company:'FlowOps',role:'CTO & Co-founder',email:'arjun@flowops.co',stage:'Pre-seed',employees:'5',verified:true},
+    {name:'Sneha Kapoor',company:'GrowthLayer',role:'Founder',email:'sneha@growthlayer.io',stage:'Pre-seed',employees:'3',verified:true},
+    {name:'Vikram Singh',company:'Clarix',role:'CEO',email:'vikram@clarix.ai',stage:'Seed',employees:'18',verified:true},
+    {name:'Anika Patel',company:'PayShift',role:'Co-Founder',email:'anika@payshift.io',stage:'Pre-seed',employees:'6',verified:false},
+  ]},
+  2:{pieces:[
+    {type:'LinkedIn Post',title:'Strong Take — The problem with most GTM strategies',preview:'Most founders spend 80% of energy building the product and 20% figuring out GTM. AI flips this equation completely…',chars:892,status:'Ready'},
+    {type:'LinkedIn Post',title:'Story — How we got our first 10 customers',preview:'We had no budget, no brand, and no connections. Here is exactly what we did, step by step…',chars:743,status:'Ready'},
+    {type:'Newsletter',title:'Weekly Digest — AI tools for founders this week',preview:'This week: 3 AI tools that will save you 10 hours, our best content on GTM, and the one playbook every founder needs…',chars:1240,status:'Ready'},
+    {type:'Twitter Thread',title:'10 lessons from building in public for 6 months',preview:'1/ We made every mistake in the book. Here is what we learned — a thread.',chars:2100,status:'Ready'},
+    {type:'Blog Article',title:'How to build a GTM strategy in 30 days (2025 guide)',preview:'Go-to-market has always been where most early-stage startups underinvest until it is too late…',chars:4800,status:'Draft'},
+    {type:'LinkedIn Post',title:'Counterintuitive — Stop optimising for likes',preview:'A post with 50,000 impressions and 0 DMs is not a success. Here is what to optimise for instead…',chars:654,status:'Ready'},
+  ]},
+  3:{sequences:[
+    {name:'Rahul Sharma — BuildStack AI',e1:'Hi Rahul, noticed BuildStack just joined YC India — congrats. We help early-stage SaaS founders build their first 100 paying customers faster using AI-powered outreach. Worth a quick 15-min call?',e2:'Rahul, sharing a framework we used to help 3 YC-backed founders close their first $10K MRR. Happy to share it — directly relevant to where you are right now?',openRate:'~32%'},
+    {name:'Priya Nair — DataLoop',e1:'Hi Priya, saw DataLoop is building ML infrastructure for enterprises — great space. We work with AI founders on their first enterprise customer acquisitions. Open to a quick call this week?',e2:'Priya, one thing we see consistently with ML infra companies: the product sells itself once you get in the room. The hard part is getting there. Here is how we solve that.',openRate:'~28%'},
+    {name:'Arjun Mehta — FlowOps',e1:'Hi Arjun, ops automation for SMBs in India is a massive space right now. We help founders like you build the outreach system to go from 0 to 50 customers. Worth a 15-min conversation?',e2:'Arjun, your target buyer has one big objection: we already have a process. Here is how ops automation founders overcome it — happy to share the framework.',openRate:'~25%'},
+  ]},
+  4:{competitors:['Linear','Asana','Monday.com','ClickUp','Notion'],sections:[
+    {title:'Positioning Gaps',findings:'All competitors target enterprise; clear whitespace in AI-native SMB workflow tools',priority:'High'},
+    {title:'Pricing Analysis',findings:'$0–15/user/mo range dominates; freemium converts at 3–8%; annual discount is the key conversion lever',priority:'High'},
+    {title:'Feature Gaps',findings:'AI-powered suggestions, automated status updates, and voice notes missing across all 5 competitors',priority:'Medium'},
+    {title:'ICP Overlap',findings:'Your ICP (Seed–Series A engineering teams) is underserved — competitors are chasing enterprise contracts',priority:'High'},
+    {title:'GTM Channels',findings:'LinkedIn and Product Hunt drive 60% of competitor traffic; SEO is their consistent weakness',priority:'Medium'},
+  ]},
+  5:{articles:[
+    {keyword:'B2B lead generation India',title:'The Complete Guide to B2B Lead Generation in India (2025)',wordCount:1520,difficulty:'KD 32',traffic:'~340/mo',status:'Ready'},
+    {keyword:'SaaS GTM strategy',title:'How to Build a SaaS GTM Strategy That Actually Works',wordCount:1480,difficulty:'KD 28',traffic:'~290/mo',status:'Ready'},
+    {keyword:'AI tools for startups',title:'15 AI Tools Every Startup Founder Should Use in 2025',wordCount:1640,difficulty:'KD 21',traffic:'~580/mo',status:'Ready'},
+    {keyword:'cold email outreach B2B',title:'Cold Email Outreach for B2B: The Framework That Gets Replies',wordCount:1390,difficulty:'KD 35',traffic:'~210/mo',status:'Draft'},
+    {keyword:'startup growth hacking',title:'Growth Hacking for Startups: 20 Tactics That Work This Year',wordCount:1710,difficulty:'KD 29',traffic:'~420/mo',status:'Ready'},
+  ]},
+  6:{investors:[
+    {name:'Karthik Reddy',fund:'Blume Ventures',stage:'Seed',thesis:'B2B SaaS, Dev tools, AI',via:'Via Rahul @ BuildStack',status:'Intro sent'},
+    {name:'Shweta Bhatia',fund:'RTP Global',stage:'Seed–Series A',thesis:'Enterprise SaaS, AI infrastructure',via:'Direct outreach',status:'Sequence ready'},
+    {name:'Amit Somani',fund:'Prime Venture Partners',stage:'Pre-seed–Seed',thesis:'Founder-first, India market',via:'Via LinkedIn connection',status:'Intro sent'},
+    {name:'Nandini Mansinghka',fund:'100X.VC',stage:'Pre-seed',thesis:'India-first early stage',via:'Direct outreach',status:'Sequence ready'},
+  ]},
+};
+
+const AG_STEPS={
+  1:['Searching LinkedIn & Apollo…','Filtering by ICP criteria…','Enriching with company data…','Verifying email addresses…','Formatting export…'],
+  2:['Analysing video content…','Extracting key insights…','Writing LinkedIn posts…','Drafting newsletter…','Generating threads…'],
+  3:['Reading your lead list…','Researching each company…','Writing personalised sequences…','A/B testing subject lines…','Packaging output…'],
+  4:['Crawling competitor websites…','Analysing pricing pages…','Mapping feature gaps…','Scoring opportunities…','Writing report…'],
+  5:['Researching keyword difficulty…','Analysing top-ranking content…','Writing SEO articles…','Adding internal links…','Optimising meta data…'],
+  6:['Sourcing investor profiles…','Matching to your thesis…','Writing warm intro requests…','Crafting cold sequences…','Personalising messages…'],
+};
+
+function AgentsPage(){
+  const{toasts,show:toast,dismiss}=useToast();
   const[filter,setFilter]=useState('All');
   const[view,setView]=useState('library');
   const[setupAgent,setSetupAgent]=useState(null);
@@ -2533,312 +2877,463 @@ function AgentsPage({toast,onTab}){
   const[resultAgent,setResultAgent]=useState(null);
   const[inputs,setInputs]=useState({});
   const[progress,setProgress]=useState(0);
-  const[credits,setCredits]=useLS('wt_credits',{used:14,total:20});
-  const[showBuilder,setShowBuilder]=useState(false);
+  const[stepIdx,setStepIdx]=useState(0);
+  const[credits,setCredits]=useLS('wt_credits',{used:0,total:999});
+  const[runHistory,setRunHistory]=useLS('wt_agent_history',[]);
   const cats=['All','Growth','Marketing','Research','Fundraising'];
   const items=filter==='All'?AGENTS:AGENTS.filter(a=>a.cat===filter);
-  const canRun=ag=>credits.used+ag.credits<=credits.total;
+  const canRun=ag=>true; // unlimited for testing
 
   const openSetup=ag=>{
-    if(!canRun(ag)){toast('Not enough growth actions. Upgrade your plan.',null,'warning');return;}
+    if(!canRun(ag)){toast('Not enough growth actions — upgrade your plan.','','warning');return;}
     setSetupAgent(ag);setInputs({});setView('setup');
   };
+
   const confirmRun=()=>{
-    setCredits(c=>({...c,used:c.used+setupAgent.credits}));
-    setRunningAgent(setupAgent);setSetupAgent(null);setView('running');setProgress(0);
-    const interval=setInterval(()=>setProgress(p=>{if(p>=100){clearInterval(interval);setTimeout(()=>{setResultAgent(runningAgent||setupAgent);setView('results');toast(`${setupAgent?.shortName||'Agent'} complete!`,'View results','success');},400);return 100;}return p+2;}),200);
+    const ag=setupAgent;
+    setCredits(c=>({...c,used:c.used+ag.credits}));
+    setRunningAgent(ag);setSetupAgent(null);
+    setView('running');setProgress(0);setStepIdx(0);
+    const steps=AG_STEPS[ag.id]||AG_STEPS[1];
+    let p=0;let si=0;
+    const iv=setInterval(()=>{
+      p+=1.6;const ns=Math.min(Math.floor(p/22),steps.length-1);
+      if(ns!==si){si=ns;setStepIdx(ns);}
+      setProgress(Math.min(p,100));
+      if(p>=100){
+        clearInterval(iv);
+        setTimeout(()=>{
+          setResultAgent(ag);setView('results');
+          setRunHistory(h=>[{id:Date.now(),agentId:ag.id,agentName:ag.shortName,credits:ag.credits,date:new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short'}),time:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})},...h.slice(0,19)]);
+          toast(`${ag.shortName} complete!`,'Results are ready','success');
+        },500);
+      }
+    },120);
   };
-  const backToLibrary=()=>{setView('library');setSetupAgent(null);setRunningAgent(null);setResultAgent(null);setProgress(0);};
-  const chainNext=ag=>{const next=AGENTS.find(a=>a.id===AGENT_CHAIN[ag.id]);if(next){setResultAgent(null);openSetup(next);}};
 
-  if(view==='setup'&&setupAgent) return <AgentSetupView agent={setupAgent} inputs={inputs} setInputs={setInputs} credits={credits} onConfirm={confirmRun} onBack={backToLibrary} toast={toast}/>;
-  if(view==='running'&&runningAgent) return <AgentRunningView agent={runningAgent} progress={progress}/>;
-  if(view==='results'&&resultAgent) return <AgentResultsView agent={resultAgent} onBack={backToLibrary} onChain={chainNext} onExport={()=>{toast('Exporting to CSV…',null,'success');}} onVault={()=>{toast('Saved to Results Vault!',null,'success');onTab('vault');}} toast={toast}/>;
+  const back=()=>{setView('library');setSetupAgent(null);setRunningAgent(null);setResultAgent(null);setProgress(0);};
+  const chainNext=ag=>{const nid=AGENT_CHAIN[ag.id];if(!nid)return;const n=AGENTS.find(a=>a.id===nid);if(n)openSetup(n);};
 
-  return <div className="fu">
-    {/* Header */}
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,gap:16}}>
-      <div>
-        <h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:700,color:C.text}}>AI Agents</h2>
-        <p style={{fontSize:13,color:C.t3,marginTop:3,fontFamily:C.sans}}>Set your goal. The agent does the work. You get results.</p>
-      </div>
-      <div style={{display:'flex',alignItems:'center',gap:12,flexShrink:0}}>
-        {/* Build with AI button */}
-        <button onClick={()=>setShowBuilder(true)}
-          style={{display:'flex',alignItems:'center',gap:9,padding:'11px 20px',background:`linear-gradient(135deg,${C.black},#2a1040)`,border:'none',borderRadius:12,cursor:'pointer',color:'#fff',fontSize:13,fontWeight:700,fontFamily:C.heading,whiteSpace:'nowrap',boxShadow:'0 4px 20px rgba(0,0,0,.25)',transition:'all .2s'}}
-          onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 8px 28px ${C.purple}50`;}}
-          onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='0 4px 20px rgba(0,0,0,.25)';}}>
-          <Icon name="sparkle" size={16} color={C.pink}/>
-          Build with AI
-        </button>
-        <div style={{textAlign:'right'}}>
-          <div style={{fontFamily:C.mono,fontSize:16,fontWeight:800,color:credits.total-credits.used<=4?C.red:C.text}}>{credits.total-credits.used}</div>
-          <div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>actions left</div>
-          <div style={{marginTop:4}}><Btn size="xs" v="primary" onClick={()=>toast('Opening upgrade…')}><Icon name="lightning" size={11} color="#fff"/> Get more</Btn></div>
+  if(view==='setup'&&setupAgent) return <><AgentSetupView agent={setupAgent} inputs={inputs} setInputs={setInputs} credits={credits} onConfirm={confirmRun} onBack={back} toast={toast}/><ToastStack toasts={toasts} dismiss={dismiss}/></>;
+  if(view==='running'&&runningAgent) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:C.bg}}><AgentRunningView agent={runningAgent} progress={progress} stepLabel={(AG_STEPS[runningAgent.id]||AG_STEPS[1])[stepIdx]}/><ToastStack toasts={toasts} dismiss={dismiss}/></div>;
+  if(view==='results'&&resultAgent) return <><AgentResultsView agent={resultAgent} onBack={back} onChain={chainNext} toast={toast}/><ToastStack toasts={toasts} dismiss={dismiss}/></>;
+
+  return <div style={{minHeight:'100vh',background:C.bg}}>
+    <div style={{maxWidth:1020,margin:'0 auto',padding:'32px 32px 56px'}}>
+      {/* Header */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,gap:16}}>
+        <div>
+          <h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:800,color:C.text,letterSpacing:'-0.02em'}}>AI Agents</h2>
+          <p style={{fontSize:13,color:C.t3,marginTop:3,fontFamily:C.sans}}>Set your goal. The agent does the work. You get results.</p>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:16,flexShrink:0}}>
+          <div style={{textAlign:'right'}}>
+            <div style={{fontFamily:C.mono,fontSize:22,fontWeight:800,color:credits.total-credits.used<=4?C.red:C.text,lineHeight:1}}>{credits.total-credits.used}</div>
+            <div style={{fontSize:11,color:C.t3,fontFamily:C.sans,marginTop:1}}>actions left</div>
+          </div>
+          <Btn v="primary" size="sm" onClick={()=>toast('Opening upgrade plan…')}><Icon name="lightning" size={13} color="#fff"/> Upgrade</Btn>
         </div>
       </div>
-    </div>
 
-    {/* Credits bar */}
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:'12px 16px',marginBottom:20}}>
-      <div style={{display:'flex',justifyContent:'space-between',marginBottom:7}}>
-        <span style={{fontSize:12,fontWeight:600,color:C.t3,fontFamily:C.sans}}>Growth Actions this month</span>
-        <span style={{fontSize:12,fontFamily:C.mono,fontWeight:600,color:C.text}}>{credits.used} / {credits.total} used</span>
+      {/* Credits */}
+      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:'12px 16px',marginBottom:18}}>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:7}}>
+          <span style={{fontSize:12,fontWeight:600,color:C.t3,fontFamily:C.sans}}>Growth Actions this month</span>
+          <span style={{fontSize:12,fontFamily:C.mono,fontWeight:600,color:C.text}}>{credits.used} / {credits.total} used · renews in 18 days</span>
+        </div>
+        <ProgressBar val={credits.used} max={credits.total} col={credits.used/credits.total>.8?C.red:C.purple} h={5}/>
       </div>
-      <ProgressBar val={credits.used} max={credits.total} col={credits.used/credits.total>.8?C.red:C.purple} h={5}/>
-      <div style={{fontSize:11,color:C.t4,marginTop:5,fontFamily:C.sans}}>Renews in 18 days · Each agent run uses 2–5 actions</div>
-    </div>
 
-    {/* Agent chains promo */}
-    <div style={{background:`linear-gradient(135deg,${C.black},#1a0a2e)`,borderRadius:12,padding:'14px 18px',marginBottom:20,display:'flex',alignItems:'center',gap:14}}>
-      <div style={{flex:1}}>
-        <div style={{fontSize:12,fontWeight:700,color:'rgba(255,255,255,.5)',letterSpacing:'0.07em',textTransform:'uppercase',marginBottom:4,fontFamily:C.sans}}>💡 Pro tip</div>
-        <div style={{fontSize:13,fontWeight:600,color:'#fff',fontFamily:C.sans}}>Chain agents for maximum results: Lead Gen → Cold Outreach → Competitor Research</div>
+      {/* Chain banner */}
+      <div style={{background:`linear-gradient(135deg,${C.black},#1a0a2e)`,borderRadius:13,padding:'14px 18px',marginBottom:20,display:'flex',alignItems:'center',gap:14}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.4)',letterSpacing:'0.07em',textTransform:'uppercase',marginBottom:4,fontFamily:C.sans}}>Suggested chain</div>
+          <div style={{fontSize:13,fontWeight:600,color:'#fff',fontFamily:C.sans}}>Lead Gen → Cold Outreach → Competitor Research — maximum pipeline in minimum time</div>
+        </div>
+        <Btn v="hero" size="sm" onClick={()=>openSetup(AGENTS[0])}>Start chain →</Btn>
       </div>
-      <Btn v="hero" size="sm" onClick={()=>openSetup(AGENTS[0])}>Start chain →</Btn>
-    </div>
 
-    <FilterPills options={cats} active={filter} onChange={setFilter} style={{marginBottom:20}}/>
+      <FilterPills options={cats} active={filter} onChange={setFilter} style={{marginBottom:20}}/>
 
-    {/* Grid with Build with AI card first */}
-    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14}}>
-      {/* Inline Build with AI card */}
-      <div onClick={()=>setShowBuilder(true)}
-        style={{background:`linear-gradient(135deg,${C.black} 0%,#0D0520 100%)`,borderRadius:14,padding:18,cursor:'pointer',transition:'all .18s',border:'1.5px solid rgba(99,55,171,.25)',position:'relative',overflow:'hidden'}}
-        onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow=`0 12px 36px ${C.purple}40`;e.currentTarget.style.borderColor=`${C.purple}70`;}}
-        onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='none';e.currentTarget.style.borderColor='rgba(99,55,171,.25)';}}>
-        <div style={{position:'absolute',top:-20,right:-20,width:120,height:120,borderRadius:'50%',background:`radial-gradient(${C.pink}35,transparent 70%)`,pointerEvents:'none'}}/>
-        <div style={{position:'relative'}}>
-          <div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${C.purple},${C.pink})`,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:14,boxShadow:`0 4px 16px ${C.purple}50`}}>
-            <Icon name="sparkle" size={22} color="#fff"/>
-          </div>
-          <div style={{fontSize:15,fontWeight:800,color:'#fff',marginBottom:5,fontFamily:C.heading,lineHeight:1.3}}>Build a custom Agent</div>
-          <div style={{fontSize:12,color:'rgba(255,255,255,.55)',lineHeight:1.55,marginBottom:16,fontFamily:C.sans}}>Describe your goal in plain language. AI designs the agent logic, inputs, and outputs for you.</div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:16}}>
-            {['Any outcome','Any input type','Auto-configured'].map(t=>(
-              <span key={t} style={{fontSize:10,fontWeight:600,padding:'3px 9px',borderRadius:20,background:'rgba(255,255,255,.1)',color:'rgba(255,255,255,.7)',fontFamily:C.sans}}>{t}</span>
-            ))}
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:6,fontSize:13,fontWeight:700,color:'#fff',fontFamily:C.heading}}>
-            <Icon name="sparkle" size={14} color={C.pink}/> Start building →
+      {/* Grid */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:32}}>
+        <div onClick={()=>toast('Custom agent builder coming soon!','','default')}
+          style={{background:`linear-gradient(145deg,${C.black},#0D0520)`,borderRadius:14,padding:18,cursor:'pointer',transition:'all .18s',border:'1.5px solid rgba(99,55,171,.25)',position:'relative',overflow:'hidden'}}
+          onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow=`0 12px 36px ${C.purple}40`;e.currentTarget.style.borderColor=`${C.purple}70`;}}
+          onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='none';e.currentTarget.style.borderColor='rgba(99,55,171,.25)';}}>
+          <div style={{position:'absolute',top:-20,right:-20,width:120,height:120,borderRadius:'50%',background:`radial-gradient(${C.pink}30,transparent 70%)`,pointerEvents:'none'}}/>
+          <div style={{position:'relative'}}>
+            <div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${C.purple},${C.pink})`,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:14}}><Icon name="sparkle" size={22} color="#fff"/></div>
+            <div style={{fontSize:15,fontWeight:800,color:'#fff',marginBottom:5,fontFamily:C.heading,lineHeight:1.3}}>Build a custom Agent</div>
+            <div style={{fontSize:12,color:'rgba(255,255,255,.55)',lineHeight:1.55,marginBottom:14,fontFamily:C.sans}}>Describe your goal. AI designs the agent logic, inputs, and output format for you.</div>
+            <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+              {['Any outcome','Any input','Auto-config'].map(t=><span key={t} style={{fontSize:10,fontWeight:600,padding:'3px 8px',borderRadius:20,background:'rgba(255,255,255,.1)',color:'rgba(255,255,255,.65)',fontFamily:C.sans}}>{t}</span>)}
+            </div>
+            <div style={{marginTop:14,display:'flex',alignItems:'center',gap:5,fontSize:12,fontWeight:700,color:C.pink,fontFamily:C.heading}}><Icon name="sparkle" size={12} color={C.pink}/> Start building →</div>
           </div>
         </div>
+        {items.map(ag=><AgentCard key={ag.id} agent={ag} canRun={canRun(ag)} onRun={()=>openSetup(ag)} onViewResult={()=>{setResultAgent(ag);setView('results');}} hasHistory={runHistory.some(r=>r.agentId===ag.id)} toast={toast}/>)}
       </div>
-      {items.map(ag=><AgentCard key={ag.id} agent={ag} canRun={canRun(ag)} onRun={()=>openSetup(ag)} onViewResult={()=>{setResultAgent(ag);setView('results');}} toast={toast}/>)}
-    </div>
 
-    {/* AI Builder modal */}
-    {showBuilder&&<AIBuilderModal type="agent" onClose={()=>setShowBuilder(false)} toast={toast}/>}
+      {/* Run history */}
+      {runHistory.length>0&&<>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,fontFamily:C.heading}}>Run History</div>
+          <button onClick={()=>setRunHistory([])} style={{fontSize:11,color:C.t4,background:'none',border:'none',cursor:'pointer',fontFamily:C.sans}}>Clear all</button>
+        </div>
+        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,overflow:'hidden'}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 90px 70px 70px 90px',padding:'9px 16px',borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+            {['Agent','Date','Time','Credits',''].map((h,i)=><span key={i} style={{fontSize:10,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.05em',fontFamily:C.sans}}>{h}</span>)}
+          </div>
+          {runHistory.slice(0,8).map((r,i)=>{
+            const ag=AGENTS.find(a=>a.id===r.agentId);
+            return <div key={r.id} style={{display:'grid',gridTemplateColumns:'1fr 90px 70px 70px 90px',padding:'10px 16px',borderBottom:i<Math.min(runHistory.length,8)-1?`1px solid ${C.border}`:'none',alignItems:'center'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                {ag&&<div style={{width:26,height:26,borderRadius:6,background:C.purpleL,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name={ag.icon} size={13} color={C.purple}/></div>}
+                <span style={{fontSize:13,fontWeight:500,color:C.text,fontFamily:C.sans,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.agentName}</span>
+              </div>
+              <span style={{fontSize:12,color:C.t3,fontFamily:C.sans}}>{r.date}</span>
+              <span style={{fontSize:12,color:C.t4,fontFamily:C.sans}}>{r.time}</span>
+              <span style={{fontFamily:C.mono,fontSize:12,color:C.t2}}>{r.credits} cr</span>
+              <button onClick={()=>{if(ag){setResultAgent(ag);setView('results');}}}
+                style={{fontSize:11,fontWeight:600,color:C.purple,background:C.purpleL,border:'none',borderRadius:7,padding:'4px 10px',cursor:'pointer',fontFamily:C.sans}}>View →</button>
+            </div>;
+          })}
+        </div>
+      </>}
+    </div>
+    <ToastStack toasts={toasts} dismiss={dismiss}/>
   </div>;
 }
 
-function AgentCard({agent,canRun,onRun,onViewResult,toast}){
+function AgentCard({agent,canRun,onRun,onViewResult,hasHistory,toast}){
   const[h,setH]=useState(false);
-  const hasResult=agent.result&&agent.lastRun!=='Never';
   return <div onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
-    style={{background:C.surface,border:`1px solid ${h?C.borderS:C.border}`,borderRadius:14,overflow:'hidden',transition:'all .18s',boxShadow:h?'0 6px 24px rgba(0,0,0,.09)':'0 1px 3px rgba(0,0,0,.04)',transform:h?'translateY(-2px)':'none'}}>
-    <div style={{padding:18}}>
+    style={{background:C.surface,border:`1px solid ${h?C.borderS:C.border}`,borderRadius:14,transition:'all .18s',boxShadow:h?'0 8px 28px rgba(0,0,0,.08)':'none',transform:h?'translateY(-2px)':'none',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+    <div style={{padding:18,flex:1,display:'flex',flexDirection:'column'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
-        <div style={{width:44,height:44,borderRadius:12,background:C.bg,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon name={agent.icon} size={22} color={C.t2}/></div>
-        <div style={{textAlign:'right'}}>
+        <div style={{width:44,height:44,borderRadius:12,background:C.bg,border:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <Icon name={agent.icon} size={22} color={C.t2}/>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:4}}>
           <Tag label={agent.cat} col={C.purple}/>
-          {hasResult&&<div style={{fontSize:10,color:C.green,fontWeight:600,marginTop:4,fontFamily:C.sans}}>✓ {agent.runs} runs</div>}
+          {hasHistory&&<span style={{fontSize:9,fontWeight:700,color:C.green,background:C.greenBg,padding:'2px 6px',borderRadius:20,fontFamily:C.sans}}>Ran before</span>}
         </div>
       </div>
       <div style={{fontSize:14,fontWeight:800,color:C.text,marginBottom:4,lineHeight:1.3,fontFamily:C.heading}}>{agent.name}</div>
-      <div style={{fontSize:12,color:C.green,fontWeight:600,marginBottom:5,fontFamily:C.sans}}>{agent.roi}</div>
-      <div style={{fontSize:12,color:C.t3,lineHeight:1.5,marginBottom:12,fontFamily:C.sans}}>{agent.desc}</div>
-      {/* Inputs needed */}
+      <div style={{fontSize:12,color:C.green,fontWeight:600,marginBottom:6,fontFamily:C.sans}}>{agent.roi}</div>
+      <div style={{fontSize:12,color:C.t3,lineHeight:1.5,marginBottom:12,fontFamily:C.sans,flex:1}}>{agent.desc}</div>
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:10,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:6,fontFamily:C.sans}}>Needs</div>
-        <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
-          {agent.inputs.map(inp=><span key={inp} style={{fontSize:10,padding:'3px 8px',borderRadius:20,background:C.bg,border:`1px solid ${C.borderS}`,color:C.t2,fontFamily:C.sans}}>{inp}</span>)}
+        <div style={{fontSize:10,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5,fontFamily:C.sans}}>Inputs needed</div>
+        <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+          {agent.inputs.slice(0,3).map(inp=><span key={inp.key} style={{fontSize:10,padding:'2px 8px',borderRadius:20,background:C.bg,border:`1px solid ${C.borderS}`,color:C.t2,fontFamily:C.sans}}>{inp.label}</span>)}
+          {agent.inputs.length>3&&<span style={{fontSize:10,padding:'2px 8px',borderRadius:20,background:C.bg,border:`1px solid ${C.borderS}`,color:C.t4,fontFamily:C.sans}}>+{agent.inputs.length-3} more</span>}
         </div>
       </div>
-      {/* Stats row */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',background:C.bg,borderRadius:9,overflow:'hidden',border:`1px solid ${C.border}`,marginBottom:12}}>
-        {[{l:'Time',v:agent.time},{l:'Cost',v:agent.credits+' actions'},{l:'Runs',v:agent.runs}].map((s,i)=>(
-          <div key={s.l} style={{padding:'8px',textAlign:'center',borderRight:i<2?`1px solid ${C.border}`:'none'}}>
-            <div style={{fontFamily:C.mono,fontSize:12,fontWeight:700,color:C.text}}>{s.v}</div>
-            <div style={{fontSize:10,color:C.t4,marginTop:1,fontFamily:C.sans}}>{s.l}</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',background:C.bg,borderRadius:9,overflow:'hidden',border:`1px solid ${C.border}`,marginBottom:14}}>
+        {[{l:'Time',v:agent.time},{l:'Cost',v:agent.credits+' cr'},{l:'Output',v:agent.stats[0][0]+' '+agent.stats[0][1]}].map((s,i)=>(
+          <div key={s.l} style={{padding:'7px 6px',textAlign:'center',borderRight:i<2?`1px solid ${C.border}`:'none'}}>
+            <div style={{fontFamily:C.mono,fontSize:11,fontWeight:700,color:C.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.v}</div>
+            <div style={{fontSize:9,color:C.t4,marginTop:1,fontFamily:C.sans}}>{s.l}</div>
           </div>
         ))}
       </div>
-      {/* CTAs */}
       <div style={{display:'flex',gap:8}}>
-        <Btn v={canRun?'primary':'outline'} onClick={onRun} style={{flex:1,justifyContent:'center'}} disabled={!canRun}>
-          <Icon name="play" size={13} color={canRun?'#fff':C.t3}/>{canRun?'Run Agent':'No credits'}
-        </Btn>
-        {hasResult&&<Btn v="ghost" onClick={onViewResult} title="View last result"><Icon name="chartBar" size={14}/></Btn>}
+        <button onClick={onRun} disabled={!canRun}
+          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'9px',borderRadius:9,background:canRun?C.black:'#e5e5e5',border:'none',cursor:canRun?'pointer':'not-allowed',color:canRun?'#fff':C.t4,fontSize:12,fontWeight:700,fontFamily:C.heading,transition:'all .15s'}}
+          onMouseEnter={e=>{if(canRun)e.currentTarget.style.background='#222';}}
+          onMouseLeave={e=>{if(canRun)e.currentTarget.style.background=C.black;}}>
+          <Icon name="play" size={13} color={canRun?'#fff':C.t4}/>
+          {canRun?'Run Agent':'No credits'}
+        </button>
+        {hasHistory&&<button onClick={onViewResult}
+          style={{padding:'9px 12px',borderRadius:9,background:C.surface,border:`1.5px solid ${C.border}`,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}} title="View last result"
+          onMouseEnter={e=>e.currentTarget.style.borderColor=C.purple} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+          <Icon name="eye" size={15} color={C.t2}/>
+        </button>}
       </div>
     </div>
   </div>;
 }
 
-/* ─── AGENT SETUP VIEW ────────────────────────── */
 function AgentSetupView({agent,inputs,setInputs,credits,onConfirm,onBack,toast}){
-  const remaining=credits.total-credits.used;
-  const canAfford=remaining>=agent.credits;
-  return <div className="fu" style={{maxWidth:680,margin:'0 auto'}}>
-    <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',fontSize:13,color:C.t3,fontFamily:C.sans,marginBottom:22,padding:'6px 0'}}>
+  const rem=credits.total-credits.used;
+  const ok=true; // unlimited for testing
+  return <div style={{maxWidth:680,margin:'0 auto',padding:'32px 32px 56px'}}>
+    <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',fontSize:13,color:C.t3,fontFamily:C.sans,marginBottom:22,padding:'6px 0',transition:'color .15s'}} onMouseEnter={e=>e.currentTarget.style.color=C.text} onMouseLeave={e=>e.currentTarget.style.color=C.t3}>
       <Icon name="arrowLeft" size={14}/> Back to Agents
     </button>
-    {/* Agent header */}
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:16,overflow:'hidden',marginBottom:18}}>
-      <div style={{background:`linear-gradient(135deg,${C.black},#1a0a2e)`,padding:'20px 24px'}}>
-        <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:12}}>
-          <div style={{width:48,height:48,borderRadius:12,background:'rgba(255,255,255,.1)',display:'flex',alignItems:'center',justifyContent:'center'}}><Icon name={agent.icon} size={24} color="#fff"/></div>
-          <div>
-            <div style={{fontSize:18,fontWeight:800,color:'#fff',fontFamily:C.heading,lineHeight:1.2}}>{agent.name}</div>
-            <div style={{fontSize:12,color:'rgba(255,255,255,.6)',marginTop:3,fontFamily:C.sans}}>{agent.roi}</div>
-          </div>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
-          {[{l:'Time',v:agent.time,c:'#60A5FA'},{l:'Cost',v:agent.credits+' actions',c:'#F59E0B'},{l:'Output',v:agent.result||'New result',c:'#4ADE80'}].map(s=>(
-            <div key={s.l} style={{background:'rgba(255,255,255,.07)',borderRadius:9,padding:'9px 12px'}}>
-              <div style={{fontFamily:C.mono,fontSize:14,fontWeight:700,color:s.c}}>{s.v}</div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,.4)',fontFamily:C.sans,marginTop:2}}>{s.l}</div>
-            </div>
-          ))}
+    <div style={{background:`linear-gradient(135deg,${C.black},#1a0a2e)`,borderRadius:16,padding:'22px 24px',marginBottom:18,position:'relative',overflow:'hidden'}}>
+      <div style={{position:'absolute',top:-30,right:-30,width:140,height:140,borderRadius:'50%',background:`radial-gradient(${C.purple}30,transparent 70%)`,pointerEvents:'none'}}/>
+      <div style={{position:'relative',display:'flex',alignItems:'center',gap:14,marginBottom:16}}>
+        <div style={{width:48,height:48,borderRadius:12,background:'rgba(255,255,255,.1)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name={agent.icon} size={24} color="#fff"/></div>
+        <div>
+          <div style={{fontSize:18,fontWeight:800,color:'#fff',fontFamily:C.heading,lineHeight:1.2}}>{agent.name}</div>
+          <div style={{fontSize:12,color:'rgba(255,255,255,.55)',marginTop:3,fontFamily:C.sans}}>{agent.roi}</div>
         </div>
       </div>
-      {/* Credits warning */}
-      {!canAfford&&<div style={{padding:'12px 24px',background:C.red+'08',borderBottom:`1px solid ${C.red}20`,display:'flex',alignItems:'center',gap:10}}>
-        <Icon name="warning" size={16} color={C.red}/>
-        <span style={{fontSize:13,color:C.red,fontFamily:C.sans}}>Only {remaining} actions left. This agent needs {agent.credits}. <button style={{fontWeight:700,background:'none',border:'none',cursor:'pointer',color:C.red,fontFamily:C.sans}} onClick={()=>toast('Opening upgrade…')}>Upgrade →</button></span>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+        {[{l:'Time',v:agent.time,c:'#60A5FA'},{l:'Cost',v:agent.credits+' actions',c:'#F59E0B'},{l:'Status',v:ok?'Ready':'Need credits',c:ok?'#4ADE80':C.red}].map(s=>(
+          <div key={s.l} style={{background:'rgba(255,255,255,.06)',borderRadius:9,padding:'9px 12px'}}>
+            <div style={{fontFamily:C.mono,fontSize:13,fontWeight:700,color:s.c}}>{s.v}</div>
+            <div style={{fontSize:10,color:'rgba(255,255,255,.4)',fontFamily:C.sans,marginTop:2}}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+      {!ok&&<div style={{marginTop:12,padding:'10px 14px',background:'rgba(220,38,38,.15)',borderRadius:9,border:'1px solid rgba(220,38,38,.3)',display:'flex',alignItems:'center',gap:8}}>
+        <Icon name="warning" size={14} color="#FF6B6B"/>
+        <span style={{fontSize:12,color:'#FF6B6B',fontFamily:C.sans}}>Only {rem} actions left — need {agent.credits}. <button onClick={()=>toast('Opening upgrade…')} style={{fontWeight:700,background:'none',border:'none',cursor:'pointer',color:'#FF6B6B',textDecoration:'underline',fontFamily:C.sans}}>Upgrade</button></span>
       </div>}
     </div>
-
-    {/* Input form */}
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:'20px 22px',marginBottom:16}}>
-      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4,fontFamily:C.heading}}>Configure Agent Inputs</div>
-      <div style={{fontSize:12,color:C.t3,marginBottom:18,fontFamily:C.sans}}>These inputs tell the agent exactly what to look for. The more specific, the better your results.</div>
+    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:'16px 18px',marginBottom:16}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:12,fontFamily:C.sans}}>What you will get</div>
+      {agent.whatYouGet.map((item,i)=>(
+        <div key={i} style={{display:'flex',alignItems:'center',gap:10,marginBottom:i<agent.whatYouGet.length-1?8:0}}>
+          <div style={{width:20,height:20,borderRadius:'50%',background:C.green+'15',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name="check" size={11} color={C.green}/></div>
+          <span style={{fontSize:13,color:C.text,fontFamily:C.sans}}>{item}</span>
+        </div>
+      ))}
+    </div>
+    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:'18px 20px',marginBottom:16}}>
+      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:3,fontFamily:C.heading}}>Configure Inputs</div>
+      <div style={{fontSize:12,color:C.t3,marginBottom:16,fontFamily:C.sans}}>The more specific your inputs, the better the results.</div>
       <div style={{display:'flex',flexDirection:'column',gap:14}}>
-        {agent.inputs.map((inp,i)=>(
-          <div key={inp}>
-            <label style={{fontSize:11,fontWeight:700,color:C.t3,display:'block',marginBottom:5,textTransform:'uppercase',letterSpacing:'0.06em',fontFamily:C.sans}}>{inp}</label>
-            <input value={inputs[inp]||''} onChange={e=>setInputs(prev=>({...prev,[inp]:e.target.value}))}
-              placeholder={inp==='Industry'?'e.g. SaaS, E-commerce, FinTech…':inp==='Location'?'e.g. India, USA, Europe…':inp==='Role'?'e.g. Founder, CEO, Head of Growth…':inp==='Video URL or transcript'?'Paste YouTube URL or video transcript…':'Enter value…'}
+        {agent.inputs.map(inp=>(
+          <div key={inp.key}>
+            <label style={{fontSize:11,fontWeight:700,color:C.t3,display:'block',marginBottom:5,textTransform:'uppercase',letterSpacing:'0.06em',fontFamily:C.sans}}>{inp.label}</label>
+            <input value={inputs[inp.key]||''} onChange={e=>setInputs(p=>({...p,[inp.key]:e.target.value}))} placeholder={inp.placeholder}
               style={{width:'100%',padding:'10px 13px',borderRadius:9,border:`1.5px solid ${C.borderS}`,fontFamily:C.sans,fontSize:13,color:C.text,outline:'none',background:C.surface,transition:'border-color .15s'}}
               onFocus={e=>e.target.style.borderColor=C.purple} onBlur={e=>e.target.style.borderColor=C.borderS}/>
           </div>
         ))}
       </div>
     </div>
+    <button onClick={ok?onConfirm:()=>toast('Upgrade for more growth actions','','warning')}
+      style={{width:'100%',padding:'16px',background:ok?C.black:'#e5e5e5',border:'none',borderRadius:12,cursor:ok?'pointer':'not-allowed',color:ok?'#fff':C.t4,fontSize:15,fontWeight:800,fontFamily:C.heading,display:'flex',alignItems:'center',justifyContent:'center',gap:10,boxShadow:ok?'0 4px 20px rgba(0,0,0,.2)':'none',transition:'all .2s'}}
+      onMouseEnter={e=>{if(ok)e.currentTarget.style.transform='translateY(-2px)';}} onMouseLeave={e=>e.currentTarget.style.transform='none'}>
+      <Icon name="play" size={18} color={ok?'#fff':C.t4}/>
+      {ok?`Confirm & Run — ${agent.credits} growth actions`:'Not enough growth actions'}
+    </button>
+  </div>;
+}
 
-    {/* Expected output preview */}
-    <div style={{background:C.greenBg,border:`1px solid ${C.green}30`,borderRadius:12,padding:'14px 18px',marginBottom:18}}>
-      <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:C.green,marginBottom:8,fontFamily:C.sans}}>Expected output</div>
-      <div style={{display:'flex',gap:16}}>
-        {agent.id===1&&<><div><div style={{fontFamily:C.mono,fontSize:20,fontWeight:800,color:C.text}}>1,000</div><div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>Verified leads</div></div>
-        <div><div style={{fontFamily:C.mono,fontSize:20,fontWeight:800,color:C.text}}>94%</div><div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>Verification rate</div></div>
-        <div><div style={{fontFamily:C.mono,fontSize:20,fontWeight:800,color:C.text}}>CSV</div><div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>Export format</div></div></>}
-        {agent.id===2&&<><div><div style={{fontFamily:C.mono,fontSize:20,fontWeight:800,color:C.text}}>30</div><div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>Content pieces</div></div>
-        <div><div style={{fontFamily:C.mono,fontSize:20,fontWeight:800,color:C.text}}>5</div><div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>Formats</div></div></>}
-        {(agent.id!==1&&agent.id!==2)&&<div style={{fontSize:13,color:C.t2,fontFamily:C.sans}}>{agent.desc}</div>}
+function AgentRunningView({agent,progress,stepLabel}){
+  return <div style={{textAlign:'center',padding:40,maxWidth:480,width:'100%'}}>
+    <div style={{width:80,height:80,borderRadius:20,background:`linear-gradient(135deg,${C.purple},${C.pink})`,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 24px',boxShadow:`0 8px 32px ${C.purple}40`}}>
+      <Icon name={agent.icon} size={36} color="#fff"/>
+    </div>
+    <h2 style={{fontFamily:C.heading,fontSize:22,fontWeight:800,color:C.text,marginBottom:8}}>{agent.shortName} is running…</h2>
+    <p style={{fontSize:14,color:C.t3,marginBottom:32,fontFamily:C.sans,minHeight:22}}>{stepLabel}</p>
+    <div style={{height:8,background:C.border,borderRadius:4,overflow:'hidden',marginBottom:10,width:'100%'}}>
+      <div style={{height:'100%',width:progress+'%',background:`linear-gradient(90deg,${C.purple},${C.pink})`,borderRadius:4,transition:'width .15s ease'}}/>
+    </div>
+    <div style={{fontFamily:C.mono,fontSize:14,color:C.t3,marginBottom:32}}>{Math.round(progress)}%</div>
+    <div style={{display:'flex',justifyContent:'center',gap:6,marginBottom:32}}>
+      {[0,1,2,3,4].map(i=>{const sp=i*22;const done=progress>=sp+22;const active=progress>=sp&&progress<sp+22;
+        return <div key={i} style={{width:done?28:active?28:8,height:8,borderRadius:4,background:done?C.green:active?C.purple:C.border,transition:'all .3s ease'}}/>;
+      })}
+    </div>
+    <div style={{display:'inline-flex',alignItems:'center',gap:8,padding:'10px 20px',background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
+      <Icon name="lightning" size={14} color={C.amber}/>
+      <span style={{fontSize:12,color:C.t3,fontFamily:C.sans}}>Est. time: {agent.time} · Safe to navigate away</span>
+    </div>
+  </div>;
+}
+
+function AgentResultsView({agent,onBack,onChain,toast}){
+  const[copied,setCopied]=useState(null);
+  const[searchQ,setSearchQ]=useState('');
+  const nextId=AGENT_CHAIN[agent.id];
+  const nextAgent=nextId?AGENTS.find(a=>a.id===nextId):null;
+  const results=AGENT_RESULTS[agent.id];
+
+  const cp=(text,idx)=>{navigator.clipboard?.writeText(text).catch(()=>{});setCopied(idx);setTimeout(()=>setCopied(null),2000);toast('Copied!','','success');};
+
+  return <div style={{maxWidth:820,margin:'0 auto',padding:'32px 32px 56px'}}>
+    <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:22}}>
+      <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',fontSize:13,color:C.t3,fontFamily:C.sans,transition:'color .15s',flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.color=C.text} onMouseLeave={e=>e.currentTarget.style.color=C.t3}>
+        <Icon name="arrowLeft" size={14}/> Back to Agents
+      </button>
+      <div style={{flex:1}}/>
+      <div style={{display:'flex',gap:8}}>
+        <Btn v="outline" size="sm" onClick={()=>toast('Downloading CSV…','','success')}><Icon name="download" size={13}/> Export CSV</Btn>
+        <Btn v="ghost" size="sm" onClick={()=>toast('Saved to vault!','','success')}><Icon name="trophy" size={13}/> Save to Vault</Btn>
+        <Btn v="ghost" size="sm" onClick={()=>toast('Link copied!','','success')}><Icon name="link" size={13}/></Btn>
       </div>
     </div>
 
-    {/* Confirm */}
-    <button onClick={canAfford?onConfirm:()=>toast('Upgrade to get more actions',null,'warning')}
-      style={{width:'100%',padding:'15px',background:canAfford?C.black:'#e5e5e5',border:'none',borderRadius:12,cursor:canAfford?'pointer':'not-allowed',color:canAfford?'#fff':C.t4,fontSize:15,fontWeight:800,fontFamily:C.heading,display:'flex',alignItems:'center',justifyContent:'center',gap:10,boxShadow:canAfford?'0 4px 20px rgba(0,0,0,.18)':'none',transition:'all .2s'}}
-      onMouseEnter={e=>{if(canAfford)e.currentTarget.style.transform='translateY(-2px)';}}
-      onMouseLeave={e=>e.currentTarget.style.transform='none'}>
-      <Icon name="play" size={18} color={canAfford?'#fff':C.t4}/>
-      {canAfford?`Confirm & Run — ${agent.credits} actions`:'Not enough growth actions'}
-    </button>
-  </div>;
-}
-
-/* ─── AGENT RUNNING VIEW ──────────────────────── */
-function AgentRunningView({agent,progress}){
-  const steps=['Initialising agent…','Processing your inputs…','Running AI analysis…','Verifying outputs…','Formatting results…'];
-  const stepIdx=Math.floor(progress/22);
-  return <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:400,textAlign:'center'}}>
-    <div style={{width:72,height:72,borderRadius:18,background:`linear-gradient(135deg,${C.purple},${C.pink})`,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:24,boxShadow:`0 8px 32px ${C.purple}40`}}>
-      <Icon name={agent.icon} size={32} color="#fff"/>
-    </div>
-    <h2 style={{fontFamily:C.heading,fontSize:22,fontWeight:800,color:C.text,marginBottom:6}}>{agent.shortName} is running…</h2>
-    <p style={{fontSize:13,color:C.t3,marginBottom:28,fontFamily:C.sans}}>{steps[Math.min(stepIdx,steps.length-1)]}</p>
-    <div style={{width:320,height:6,background:C.border,borderRadius:3,overflow:'hidden',marginBottom:10}}>
-      <div style={{height:'100%',width:progress+'%',background:`linear-gradient(90deg,${C.purple},${C.pink})`,borderRadius:3,transition:'width .2s ease'}}/>
-    </div>
-    <div style={{fontFamily:C.mono,fontSize:13,color:C.t3}}>{progress}%</div>
-    <div style={{marginTop:32,padding:'12px 20px',background:C.bg,borderRadius:10,border:`1px solid ${C.border}`}}>
-      <div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>Estimated time: {agent.time} · You can navigate away — we'll notify you</div>
-    </div>
-  </div>;
-}
-
-/* ─── AGENT RESULTS VIEW ──────────────────────── */
-function AgentResultsView({agent,onBack,onChain,onExport,onVault,toast}){
-  const nextId=AGENT_CHAIN[agent.id];
-  const nextAgent=nextId?AGENTS.find(a=>a.id===nextId):null;
-  const stats=agent.id===1?[['847','Leads found'],['94%','Verified'],['12','Industries'],['₹4.2L','Est. pipeline']]
-    :agent.id===2?[['10','Posts created'],['1','Newsletter'],['3','Threads'],['8h','Time saved']]
-    :[['Done','Status'],['High','Quality'],['PDF','Format'],['Vault','Saved']];
-  return <div className="fu" style={{maxWidth:700,margin:'0 auto'}}>
-    <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',fontSize:13,color:C.t3,fontFamily:C.sans,marginBottom:22,padding:'6px 0'}}>
-      <Icon name="arrowLeft" size={14}/> Back to Agents
-    </button>
     {/* Success header */}
     <div style={{background:`linear-gradient(135deg,${C.green},#15803D)`,borderRadius:16,padding:'20px 24px',marginBottom:18,position:'relative',overflow:'hidden'}}>
       <div style={{position:'absolute',top:-20,right:-20,width:120,height:120,borderRadius:'50%',background:'rgba(255,255,255,.08)',pointerEvents:'none'}}/>
       <div style={{position:'relative',display:'flex',alignItems:'center',gap:14}}>
-        <div style={{width:48,height:48,borderRadius:12,background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:24}}>✅</div>
+        <div style={{width:52,height:52,borderRadius:13,background:'rgba(255,255,255,.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:26}}>✅</div>
         <div>
-          <div style={{fontSize:18,fontWeight:800,color:'#fff',fontFamily:C.heading}}>{agent.shortName} Complete!</div>
-          <div style={{fontSize:12,color:'rgba(255,255,255,.75)',marginTop:2,fontFamily:C.sans}}>Completed in {agent.time} · {agent.credits} growth actions used</div>
+          <div style={{fontSize:20,fontWeight:800,color:'#fff',fontFamily:C.heading}}>{agent.shortName} Complete!</div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,.75)',marginTop:2,fontFamily:C.sans}}>Completed in {agent.time} · {agent.credits} growth actions used · Results ready to use</div>
         </div>
       </div>
     </div>
+
     {/* Stats */}
-    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-      {stats.map(([v,l])=>(
-        <div key={l} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:'14px',textAlign:'center'}}>
-          <div style={{fontFamily:C.mono,fontSize:22,fontWeight:800,color:C.text,lineHeight:1,animation:'countUp .4s ease'}}>{v}</div>
-          <div style={{fontSize:11,color:C.t3,marginTop:4,fontFamily:C.sans}}>{l}</div>
+    <div style={{display:'grid',gridTemplateColumns:`repeat(${agent.stats.length},1fr)`,gap:10,marginBottom:20}}>
+      {agent.stats.map(([v,l],i)=>(
+        <div key={i} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:'16px',textAlign:'center'}}>
+          <div style={{fontFamily:C.mono,fontSize:24,fontWeight:800,color:C.text,lineHeight:1}}>{v}</div>
+          <div style={{fontSize:11,color:C.t3,marginTop:5,fontFamily:C.sans}}>{l}</div>
         </div>
       ))}
     </div>
 
-    {/* Sample results */}
-    {agent.id===1&&<div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,overflow:'hidden',marginBottom:18}}>
-      <div style={{padding:'12px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <span style={{fontSize:12,fontWeight:700,color:C.text,fontFamily:C.sans}}>Sample Results (4 of 847)</span>
-        <span style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>Full list in export</span>
+    {/* Agent 1: Lead table */}
+    {agent.id===1&&results?.leads&&<div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,overflow:'hidden',marginBottom:18}}>
+      <div style={{padding:'12px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',alignItems:'center',gap:10}}>
+        <div style={{position:'relative',flex:1}}>
+          <Icon name="magnifying" size={13} color={C.t4} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)'}}/>
+          <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Search leads…" style={{width:'100%',padding:'7px 12px 7px 30px',borderRadius:8,border:`1.5px solid ${C.borderS}`,fontFamily:C.sans,fontSize:12,color:C.text,outline:'none',background:C.bg}}/>
+        </div>
+        <span style={{fontSize:12,color:C.t3,fontFamily:C.sans,flexShrink:0}}>Showing {results.leads.filter(l=>!searchQ||l.name.toLowerCase().includes(searchQ.toLowerCase())||l.company.toLowerCase().includes(searchQ.toLowerCase())).length} of 847</span>
       </div>
-      {SAMPLE_LEADS.map((l,i)=>(
-        <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 16px',borderBottom:i<3?`1px solid ${C.border}`:'none',transition:'background .12s'}} onMouseEnter={e=>e.currentTarget.style.background=C.bg} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-          <Avatar name={l.name} size={32}/>
-          <div style={{flex:1}}>
-            <div style={{fontSize:13,fontWeight:600,color:C.text,fontFamily:C.sans}}>{l.name}</div>
-            <div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>{l.role} · {l.company}</div>
+      <div style={{display:'grid',gridTemplateColumns:'2fr 1.5fr 2fr 1fr 80px',padding:'8px 16px',background:C.bg,borderBottom:`1px solid ${C.border}`}}>
+        {['Name','Role','Email','Stage','Status'].map(h=><span key={h} style={{fontSize:10,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.05em',fontFamily:C.sans}}>{h}</span>)}
+      </div>
+      {results.leads.filter(l=>!searchQ||l.name.toLowerCase().includes(searchQ.toLowerCase())||l.company.toLowerCase().includes(searchQ.toLowerCase())).map((l,i,arr)=>(
+        <div key={i} style={{display:'grid',gridTemplateColumns:'2fr 1.5fr 2fr 1fr 80px',padding:'11px 16px',borderBottom:i<arr.length-1?`1px solid ${C.border}`:'none',alignItems:'center',transition:'background .1s',cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.background=C.bg} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          <div style={{display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+            <Avatar name={l.name} size={30}/>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,color:C.text,fontFamily:C.sans,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.name}</div>
+              <div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>{l.company}</div>
+            </div>
           </div>
-          <div style={{textAlign:'right'}}>
-            <div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>{l.email}</div>
-            <div style={{fontSize:10,color:C.t4,fontFamily:C.sans,marginTop:1}}>{l.stage}</div>
+          <div style={{fontSize:12,color:C.t2,fontFamily:C.sans,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.role}</div>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontSize:11,color:C.t2,fontFamily:C.mono,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{l.email}</span>
+            <button onClick={e=>{e.stopPropagation();cp(l.email,i);}} style={{width:22,height:22,borderRadius:5,border:`1px solid ${copied===i?C.green:C.border}`,background:copied===i?C.greenBg:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .2s'}}>
+              <Icon name={copied===i?'check':'copy'} size={10} color={copied===i?C.green:C.t3}/>
+            </button>
           </div>
-          <Tag label="Verified" col={C.green}/>
+          <div style={{fontSize:11,color:C.t3,fontFamily:C.sans,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{l.stage}</div>
+          <span style={{fontSize:10,fontWeight:700,color:l.verified?C.green:C.amber,background:l.verified?C.greenBg:C.amber+'12',padding:'2px 8px',borderRadius:20,fontFamily:C.sans}}>{l.verified?'Verified':'Unverified'}</span>
         </div>
       ))}
     </div>}
 
-    {/* Action row */}
-    <div style={{display:'flex',gap:10,marginBottom:18}}>
-      <Btn v="primary" style={{flex:1,justifyContent:'center'}} onClick={onExport}><Icon name="download" size={14} color="#fff"/> Export CSV</Btn>
-      <Btn v="outline" style={{flex:1,justifyContent:'center'}} onClick={onVault}><Icon name="trophy" size={14}/> Save to Vault</Btn>
-      <Btn v="ghost" onClick={()=>toast('Copied link!',null,'success')}><Icon name="copy" size={14}/></Btn>
-    </div>
+    {/* Agent 2: Content pieces */}
+    {agent.id===2&&results?.pieces&&<div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:18}}>
+      {results.pieces.map((p,i)=>(
+        <div key={i} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:'14px 16px',transition:'border-color .15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.borderS} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+          <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:8,gap:10}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
+              <Tag label={p.type} col={C.purple}/>
+              <span style={{fontSize:12,fontWeight:600,color:C.text,fontFamily:C.sans,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.title}</span>
+            </div>
+            <div style={{display:'flex',gap:6,flexShrink:0}}>
+              <span style={{fontSize:10,fontWeight:600,color:p.status==='Ready'?C.green:C.amber,background:p.status==='Ready'?C.greenBg:C.amber+'12',padding:'2px 8px',borderRadius:20,fontFamily:C.sans}}>{p.status}</span>
+              <button onClick={()=>cp(p.preview,i)} style={{width:26,height:26,borderRadius:7,border:`1px solid ${copied===i?C.green:C.border}`,background:copied===i?C.greenBg:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .2s'}}>
+                <Icon name={copied===i?'check':'copy'} size={11} color={copied===i?C.green:C.t3}/>
+              </button>
+            </div>
+          </div>
+          <div style={{fontSize:12,color:C.t3,lineHeight:1.6,fontFamily:C.sans}}>{p.preview}</div>
+          <div style={{fontSize:10,color:C.t4,marginTop:5,fontFamily:C.sans}}>{p.chars.toLocaleString()} characters</div>
+        </div>
+      ))}
+    </div>}
 
-    {/* Chain recommendation */}
-    {nextAgent&&<div style={{background:C.purpleL,border:`1px solid ${C.purple}25`,borderRadius:14,padding:'16px 18px',cursor:'pointer'}} onClick={()=>onChain(agent)}>
+    {/* Agent 3: Sequences */}
+    {agent.id===3&&results?.sequences&&<div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:18}}>
+      {results.sequences.map((s,i)=>(
+        <div key={i} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:13,overflow:'hidden'}}>
+          <div style={{padding:'11px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',background:C.bg}}>
+            <div style={{fontSize:13,fontWeight:600,color:C.text,fontFamily:C.sans}}>{s.name}</div>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+              <span style={{fontSize:11,color:C.green,fontFamily:C.sans,fontWeight:600}}>Est. {s.openRate} open rate</span>
+              <Tag label="Ready" col={C.green}/>
+            </div>
+          </div>
+          <div style={{padding:'14px 16px'}}>
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5,fontFamily:C.sans}}>Email 1 — Day 1</div>
+              <div style={{fontSize:12,color:C.t2,lineHeight:1.65,fontFamily:C.sans,background:C.bg,borderRadius:8,padding:'10px 12px'}}>{s.e1}</div>
+            </div>
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:5,fontFamily:C.sans}}>Email 2 — Day 4</div>
+              <div style={{fontSize:12,color:C.t2,lineHeight:1.65,fontFamily:C.sans,background:C.bg,borderRadius:8,padding:'10px 12px'}}>{s.e2}</div>
+            </div>
+            <button onClick={()=>cp(s.e1+'\n\n---\n\n'+s.e2,i)} style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:7,border:`1px solid ${copied===i?C.green:C.border}`,background:copied===i?C.greenBg:'transparent',cursor:'pointer',fontSize:11,fontWeight:600,color:copied===i?C.green:C.t2,fontFamily:C.sans,transition:'all .2s'}}>
+              <Icon name={copied===i?'check':'copy'} size={11} color="currentColor"/>{copied===i?'Copied!':'Copy both emails'}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>}
+
+    {/* Agent 4: Competitor report */}
+    {agent.id===4&&results?.sections&&<div style={{marginBottom:18}}>
+      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:13,marginBottom:10,overflow:'hidden'}}>
+        <div style={{padding:'10px 16px',borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.07em',fontFamily:C.sans}}>Competitors Analysed</div>
+        </div>
+        <div style={{padding:'12px 16px',display:'flex',gap:8,flexWrap:'wrap'}}>
+          {results.competitors.map(c=><span key={c} style={{fontSize:12,padding:'4px 12px',borderRadius:20,background:C.bg,border:`1px solid ${C.border}`,color:C.t2,fontFamily:C.sans,fontWeight:500}}>{c}</span>)}
+        </div>
+      </div>
+      {results.sections.map((sec,i)=>(
+        <div key={i} style={{background:C.surface,border:`1px solid ${sec.priority==='High'?C.purple+'30':C.border}`,borderRadius:12,padding:'14px 16px',marginBottom:8,borderLeft:`3px solid ${sec.priority==='High'?C.purple:C.t4}`}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.text,fontFamily:C.heading}}>{sec.title}</div>
+            <span style={{fontSize:10,fontWeight:700,color:sec.priority==='High'?C.purple:C.t4,background:sec.priority==='High'?C.purpleL:'transparent',padding:'2px 8px',borderRadius:20,fontFamily:C.sans}}>{sec.priority} Priority</span>
+          </div>
+          <div style={{fontSize:12,color:C.t2,lineHeight:1.6,fontFamily:C.sans}}>{sec.findings}</div>
+        </div>
+      ))}
+    </div>}
+
+    {/* Agent 5: SEO articles */}
+    {agent.id===5&&results?.articles&&<div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,overflow:'hidden',marginBottom:18}}>
+      <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 80px',padding:'9px 16px',background:C.bg,borderBottom:`1px solid ${C.border}`}}>
+        {['Article Title','KD','Difficulty','Traffic/mo','Status'].map(h=><span key={h} style={{fontSize:10,fontWeight:700,color:C.t4,textTransform:'uppercase',letterSpacing:'0.05em',fontFamily:C.sans}}>{h}</span>)}
+      </div>
+      {results.articles.map((a,i)=>(
+        <div key={i} style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 80px',padding:'11px 16px',borderBottom:i<results.articles.length-1?`1px solid ${C.border}`:'none',alignItems:'center',transition:'background .1s'}} onMouseEnter={e=>e.currentTarget.style.background=C.bg} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+          <div style={{fontSize:12,fontWeight:500,color:C.text,fontFamily:C.sans,paddingRight:12,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.title}</div>
+          <div style={{fontSize:11,color:C.t3,fontFamily:C.mono,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a.keyword.split(' ').slice(0,2).join(' ')}</div>
+          <div style={{fontSize:12,color:C.green,fontFamily:C.sans,fontWeight:500}}>{a.difficulty}</div>
+          <div style={{fontSize:12,color:C.blue,fontFamily:C.sans,fontWeight:500}}>{a.traffic}</div>
+          <span style={{fontSize:10,fontWeight:700,color:a.status==='Ready'?C.green:C.amber,background:a.status==='Ready'?C.greenBg:C.amber+'12',padding:'2px 8px',borderRadius:20,fontFamily:C.sans}}>{a.status}</span>
+        </div>
+      ))}
+    </div>}
+
+    {/* Agent 6: Investor list */}
+    {agent.id===6&&results?.investors&&<div style={{display:'flex',flexDirection:'column',gap:10,marginBottom:18}}>
+      {results.investors.map((inv,i)=>(
+        <div key={i} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:13,padding:'14px 16px',display:'flex',alignItems:'center',gap:12,transition:'border-color .15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.borderS} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
+          <Avatar name={inv.name} size={42}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:C.heading}}>{inv.name}</div>
+            <div style={{fontSize:12,color:C.t3,fontFamily:C.sans,marginTop:1}}>{inv.fund} · {inv.stage}</div>
+            <div style={{fontSize:11,color:C.t4,fontFamily:C.sans,marginTop:2}}>Thesis: {inv.thesis}</div>
+          </div>
+          <div style={{textAlign:'right',flexShrink:0}}>
+            <div style={{fontSize:11,color:C.t3,fontFamily:C.sans,marginBottom:4}}>via {inv.via}</div>
+            <span style={{fontSize:10,fontWeight:700,color:inv.status==='Intro sent'?C.green:C.purple,background:inv.status==='Intro sent'?C.greenBg:C.purpleL,padding:'2px 8px',borderRadius:20,fontFamily:C.sans}}>{inv.status}</span>
+          </div>
+          <button onClick={()=>cp(`${inv.name} — ${inv.fund}\nStage: ${inv.stage}\nThesis: ${inv.thesis}`,i)} style={{width:30,height:30,borderRadius:8,border:`1px solid ${copied===i?C.green:C.border}`,background:copied===i?C.greenBg:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .2s'}}>
+            <Icon name={copied===i?'check':'copy'} size={12} color={copied===i?C.green:C.t3}/>
+          </button>
+        </div>
+      ))}
+    </div>}
+
+    {/* Chain */}
+    {nextAgent&&<div style={{background:C.purpleL,border:`1px solid ${C.purple}20`,borderRadius:14,padding:'16px 18px',cursor:'pointer',transition:'all .15s'}} onMouseEnter={e=>e.currentTarget.style.borderColor=`${C.purple}40`} onMouseLeave={e=>e.currentTarget.style.borderColor=`${C.purple}20`} onClick={()=>onChain(agent)}>
       <div style={{fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:C.purple,marginBottom:8,fontFamily:C.sans}}>Recommended next step</div>
       <div style={{display:'flex',alignItems:'center',gap:12}}>
-        <div style={{width:38,height:38,borderRadius:10,background:C.purple+'20',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name={nextAgent.icon} size={18} color={C.purple}/></div>
+        <div style={{width:40,height:40,borderRadius:10,background:C.purple+'20',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name={nextAgent.icon} size={18} color={C.purple}/></div>
         <div style={{flex:1}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text,fontFamily:C.sans}}>{nextAgent.name}</div>
-          <div style={{fontSize:11,color:C.t3,fontFamily:C.sans}}>{CHAIN_MSG[agent.id]||nextAgent.roi} · {nextAgent.credits} actions · {nextAgent.time}</div>
+          <div style={{fontSize:11,color:C.t3,fontFamily:C.sans,marginTop:2}}>{CHAIN_LABEL[agent.id]||nextAgent.roi} · {nextAgent.credits} actions · {nextAgent.time}</div>
         </div>
         <Btn size="sm" v="primary" onClick={e=>{e.stopPropagation();onChain(agent);}}><Icon name="play" size={12} color="#fff"/> Chain →</Btn>
       </div>
@@ -2846,435 +3341,59 @@ function AgentResultsView({agent,onBack,onChain,onExport,onVault,toast}){
   </div>;
 }
 
-/* ─── AI STRATEGIST ───────────────────────────── */
-function StrategistPage({user,toast}){
-  const[msgs,setMsgs]=useState([{role:'assistant',text:`Hi ${user.firstName}! I'm your AI Strategist. I know you're building in ${user.industry||'your space'}. What should we work on — growth, product, or fundraising?`}]);
-  const[val,setVal]=useState('');const[thinking,setThinking]=useState(false);const ref=useRef();
-  const starters=['What should I focus on this week?','Why are my conversions low?','How should I price my product?','Give me a 90-day growth plan','Who is my ideal customer?'];
-  const canned={'What should I focus on this week?':'Based on your stage, focus on: (1) Complete MVP Builder Phase 2 — you\'re 33% through. (2) Run Lead Gen Agent to build pipeline. (3) Set up basic analytics. Which of these shall we dive into?','Why are my conversions low?':'Low conversions usually come from: wrong audience, weak messaging, funnel friction, or misaligned pricing. Start with your ICP definition — want me to run through the exercise?','How should I price my product?':'For early-stage SaaS: value-based pricing beats cost-plus. Start at $49–99/mo and test upward. What outcome are you delivering to customers?','Give me a 90-day growth plan':'Days 1–30: Launch. Complete MVP Builder, run Lead Gen, book 20 calls. Days 31–60: Validate. Get 10 paying customers. Days 61–90: Scale. 2x what works. Run Content Agent weekly.','Who is my ideal customer?':'Your ICP: someone who has your problem acutely, budget to pay, authority to buy, and is reachable. For B2B SaaS in India: Pre-seed to Series A founders. Want me to sharpen this?'};
-  const send=async()=>{
-    if(!val.trim()||thinking)return;
-    setMsgs(p=>[...p,{role:'user',text:val}]);setVal('');setThinking(true);
-    await new Promise(r=>setTimeout(r,1100));
-    const reply=canned[val.trim()]||`Great question. Based on your context as a ${user.industry||'startup'} founder, I'd recommend starting with the GTM Strategy Playbook. This directly addresses what you're asking. Want me to walk through the key steps?`;
-    setMsgs(p=>[...p,{role:'assistant',text:reply}]);setThinking(false);
-    setTimeout(()=>ref.current?.scrollTo({top:99999,behavior:'smooth'}),80);
-  };
-  return <div className="fu" style={{display:'flex',flexDirection:'column',height:'calc(100vh - 130px)',maxWidth:700,margin:'0 auto'}}>
-    <div style={{marginBottom:14}}>
-      <h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:700,color:C.text}}>AI Strategist</h2>
-      <p style={{fontSize:13,color:C.t3,marginTop:3}}>Your personal AI business advisor. Ask anything about your product, growth, or strategy.</p>
-    </div>
-    <div style={{background:C.purpleL,border:`1px solid ${C.purple}20`,borderRadius:10,padding:'10px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:10}}>
-      <div style={{width:7,height:7,borderRadius:'50%',background:C.purple,animation:'breathe 2s ease infinite',flexShrink:0}}/>
-      <div style={{fontSize:13,color:C.t2}}><span style={{fontWeight:600,color:C.text}}>Context loaded:</span> {user.industry||'Startup'} · {user.stage||'Early stage'} · Goal: {user.goal||'Grow revenue'}</div>
-    </div>
-    <div ref={ref} style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:12,marginBottom:12}}>
-      {msgs.map((m,i)=>(
-        <div key={i} style={{display:'flex',gap:10,justifyContent:m.role==='user'?'flex-end':'flex-start'}}>
-          {m.role==='assistant'&&<div style={{width:32,height:32,borderRadius:8,background:`linear-gradient(135deg,${C.purple},${C.pink})`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:2}}><Icon name="brain" size={15} color="#fff"/></div>}
-          <div style={{maxWidth:'78%',padding:'11px 14px',borderRadius:m.role==='user'?'12px 3px 12px 12px':'3px 12px 12px 12px',background:m.role==='user'?C.purple:'#fff',border:`1px solid ${m.role==='user'?C.purple:C.border}`,color:m.role==='user'?'#fff':C.text,fontSize:13,lineHeight:1.6}}>{m.text}</div>
-          {m.role==='user'&&<Avatar name={user.name} size={32}/>}
-        </div>
-      ))}
-      {thinking&&<div style={{display:'flex',gap:10}}>
-        <div style={{width:32,height:32,borderRadius:8,background:`linear-gradient(135deg,${C.purple},${C.pink})`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name="brain" size={15} color="#fff"/></div>
-        <div style={{padding:'11px 14px',borderRadius:'3px 12px 12px 12px',background:'#fff',border:`1px solid ${C.border}`,display:'flex',gap:5,alignItems:'center'}}>
-          {[0,.2,.4].map(d=><div key={d} style={{width:6,height:6,borderRadius:'50%',background:C.purple,animation:`pulse 1.2s ${d}s infinite`}}/>)}
-        </div>
-      </div>}
-    </div>
-    <div style={{marginBottom:9,display:'flex',gap:5,flexWrap:'wrap'}}>
-      {starters.map(s=><button key={s} onClick={()=>setVal(s)} style={{fontSize:11,padding:'4px 10px',borderRadius:20,border:`1px solid ${C.borderS}`,background:C.surface,color:C.t2,cursor:'pointer',fontFamily:C.sans,transition:'all .12s'}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.purple;e.currentTarget.style.color=C.purple;}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.borderS;e.currentTarget.style.color=C.t2;}}>{s}</button>)}
-    </div>
-    <div style={{display:'flex',gap:8,background:C.surface,border:`1.5px solid ${C.borderS}`,borderRadius:12,padding:'9px 12px'}}>
-      <textarea value={val} onChange={e=>setVal(e.target.value)} placeholder="Ask anything about your business…" rows={1} style={{flex:1,border:'none',outline:'none',fontFamily:C.sans,fontSize:13,color:C.text,background:'transparent',resize:'none',lineHeight:1.5}}
-        onInput={e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,90)+'px';}}
-        onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}}/>
-      <button onClick={send} style={{width:30,height:30,borderRadius:7,background:val?C.purple:C.border,border:'none',cursor:val?'pointer':'default',display:'flex',alignItems:'center',justifyContent:'center',transition:'background .15s',flexShrink:0}}>
-        <Icon name="arrowUp" size={14} color={val?'#fff':C.t4}/>
-      </button>
-    </div>
-  </div>;
-}
-
-/* ─── WORKFLOW PAGE ───────────────────────────── */
-function WorkflowPage({toast}){
-  const workflows=[
-    {id:1,name:'Lead → Outreach → CRM',desc:'Lead Gen completes → write sequences → HubSpot → Slack',status:'live',runs:12,saved:'8h'},
-    {id:2,name:'Video → Repurpose → Schedule',desc:'New video → 10 content formats → schedule channels',status:'paused',runs:5,saved:'4h'},
-    {id:3,name:'Competitor alert → Report',desc:'Pricing change → research → email summary',status:'live',runs:3,saved:'3h'},
-  ];
-  const nodes=[{step:'Trigger',label:'When this happens…',icon:'lightning',col:C.amber},{step:'Action 1',label:'Do this first',icon:'robot',col:C.purple},{step:'Action 2',label:'Then do this',icon:'envelope',col:C.blue},{step:'Notify',label:'Alert the team',icon:'bell',col:C.green}];
-  return <div className="fu">
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
-      <div>
-        <h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:700,color:C.text}}>Workflow Automation</h2>
-        <p style={{fontSize:13,color:C.t3,marginTop:3}}>Connect Agents together. Build flows that run automatically.</p>
-      </div>
-      <Btn v="primary" size="sm" onClick={()=>toast('New workflow builder…')}><Icon name="plus" size={13} color="#fff"/> New Workflow</Btn>
-    </div>
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:18,marginBottom:20}}>
-      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:3}}>Visual Workflow Builder</div>
-      <div style={{fontSize:12,color:C.t3,marginBottom:14}}>Chain Agents and actions together.</div>
-      <div style={{display:'flex',alignItems:'center',gap:0,overflowX:'auto',paddingBottom:4}}>
-        {nodes.map((b,i)=>(
-          <React.Fragment key={b.step}>
-            <div className="wf-node" onClick={()=>toast(`Configure ${b.step}…`)} style={{background:b.col+'08',border:`1.5px solid ${b.col}30`,borderRadius:10,padding:'11px 14px',minWidth:118,flexShrink:0}}>
-              <div style={{width:26,height:26,borderRadius:6,background:b.col+'14',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:7}}><Icon name={b.icon} size={14} color={b.col}/></div>
-              <div style={{fontSize:10,fontWeight:700,color:b.col,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:2}}>{b.step}</div>
-              <div style={{fontSize:11,color:C.t3}}>{b.label}</div>
-            </div>
-            {i<nodes.length-1&&<div style={{display:'flex',alignItems:'center',padding:'0 4px',flexShrink:0}}><div style={{width:18,height:1,background:C.borderS}}/><Icon name="caretRight" size={11} color={C.t4}/></div>}
-          </React.Fragment>
-        ))}
-        <div style={{display:'flex',alignItems:'center',padding:'0 4px',flexShrink:0}}><div style={{width:18,height:1,background:C.borderS}}/><Icon name="caretRight" size={11} color={C.t4}/></div>
-        <button onClick={()=>toast('Add step…')} style={{width:44,height:44,borderRadius:10,border:`1.5px dashed ${C.borderS}`,background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.purple} onMouseLeave={e=>e.currentTarget.style.borderColor=C.borderS}>
-          <Icon name="plus" size={17} color={C.t3}/>
-        </button>
-      </div>
-    </div>
-    <SHd title="Active Workflows"/>
-    {workflows.map(wf=>(
-      <div key={wf.id} onClick={()=>toast(`Opening ${wf.name}…`)} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:11,padding:'13px 15px',cursor:'pointer',transition:'all .15s',display:'flex',alignItems:'center',gap:12,marginBottom:9}}
-        onMouseEnter={e=>{e.currentTarget.style.borderColor=C.purple+'55';e.currentTarget.style.boxShadow=`0 4px 14px ${C.purple}10`;}}
-        onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.boxShadow='none';}}>
-        <div style={{width:36,height:36,borderRadius:9,background:wf.status==='live'?C.green+'14':C.bg,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name="lightning" size={17} color={wf.status==='live'?C.green:C.t3}/></div>
-        <div style={{flex:1}}>
-          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:2}}>{wf.name}</div>
-          <div style={{fontSize:11,color:C.t3}}>{wf.desc}</div>
-        </div>
-        <div style={{textAlign:'right',flexShrink:0}}>
-          <span style={{fontSize:11,fontWeight:600,color:wf.status==='live'?C.green:C.amber,background:wf.status==='live'?C.greenBg:C.amber+'12',padding:'2px 8px',borderRadius:20,display:'inline-block',marginBottom:3}}>{wf.status==='live'?'● Live':'⏸ Paused'}</span>
-          <div style={{fontSize:11,color:C.t3}}>{wf.runs} runs · {wf.saved} saved</div>
-        </div>
-      </div>
-    ))}
-  </div>;
-}
-
-/* ─── RESULTS VAULT ───────────────────────────── */
-function VaultPage({toast}){
-  const[q,setQ]=useState('');const[filter,setFilter]=useState('All');
-  const items=[
-    {id:1,type:'leads',icon:'target',title:'B2B SaaS Lead List — India',desc:'847 leads · CSV · 94% verified · Apr 15',col:C.green,size:'2.1 MB'},
-    {id:2,type:'content',icon:'pencil',title:'Wedigtech Intro — 10 Social Posts',desc:'Instagram, LinkedIn, Twitter · Apr 14',col:C.amber,size:'45 KB'},
-    {id:3,type:'report',icon:'magnifying',title:'Competitor Research Report',desc:'12 pages · 8 competitors · Apr 8',col:C.blue,size:'1.3 MB'},
-    {id:4,type:'playbook',icon:'bookOpen',title:'MVP Builder Phase 1 Notes',desc:'6 pages · Validation framework · Apr 5',col:C.purple,size:'120 KB'},
-    {id:5,type:'leads',icon:'target',title:'Pre-seed Founders Lead List',desc:'400 leads · CSV · Apr 5',col:C.green,size:'980 KB'},
-    {id:6,type:'document',icon:'notePencil',title:'Fundraising One-Pager',desc:'Investor-ready · Mar 28',col:'#8B5CF6',size:'850 KB'},
-  ];
-  const types=['All','leads','content','report','playbook','document'];
-  const shown=items.filter(i=>(filter==='All'||i.type===filter)&&(!q||i.title.toLowerCase().includes(q.toLowerCase())));
-  return <div className="fu">
-    <div style={{marginBottom:18}}>
-      <h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:700,color:C.text}}>Results Vault</h2>
-      <p style={{fontSize:13,color:C.t3,marginTop:3}}>Every Agent output, Playbook export, and downloaded asset — searchable and ready.</p>
-    </div>
-    <div style={{display:'flex',gap:10,marginBottom:14,alignItems:'center'}}>
-      <div style={{flex:1,position:'relative'}}>
-        <Icon name="magnifying" size={13} color={C.t3} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',pointerEvents:'none'}}/>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search all results…" style={{width:'100%',padding:'8px 12px 8px 32px',borderRadius:9,border:`1.5px solid ${C.borderS}`,fontFamily:C.sans,fontSize:13,color:C.text,outline:'none',background:C.surface}}/>
-      </div>
-      <FilterPills options={types.map(t=>({label:t==='All'?'All':t.charAt(0).toUpperCase()+t.slice(1),value:t}))} active={filter} onChange={setFilter}/>
-    </div>
-    <div style={{display:'flex',flexDirection:'column',gap:8}}>
-      {shown.map((item,i)=>(
-        <div key={item.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:11,padding:'11px 15px',cursor:'pointer',transition:'all .15s',display:'flex',alignItems:'center',gap:11}}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor=item.col+'55';e.currentTarget.style.transform='translateX(3px)';}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform='none';}}>
-          <div style={{width:34,height:34,borderRadius:8,background:item.col+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name={item.icon} size={16} color={item.col}/></div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:1}}>{item.title}</div>
-            <div style={{fontSize:11,color:C.t3}}>{item.desc}</div>
-          </div>
-          <div style={{display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
-            <span style={{fontSize:10,color:C.t4}}>{item.size}</span>
-            <Tag label={item.type} col={item.col}/>
-            <Btn size="xs" v="outline" onClick={e=>{e.stopPropagation();toast('Downloading…',null,'success');}}><Icon name="download" size={11}/></Btn>
-            <Btn size="xs" v="ghost" onClick={e=>{e.stopPropagation();toast('Copied!',null,'success');}}><Icon name="copy" size={11}/></Btn>
-          </div>
-        </div>
-      ))}
-      {shown.length===0&&<div style={{padding:'40px',textAlign:'center',background:C.surface,border:`1px dashed ${C.borderS}`,borderRadius:14}}>
-        <Icon name="trophy" size={26} color={C.t4} style={{marginBottom:10}}/>
-        <div style={{fontSize:14,fontWeight:600,color:C.t3}}>No results match your search</div>
-      </div>}
-    </div>
-  </div>;
-}
-
-/* ─── TEAM PAGE ───────────────────────────────── */
-function TeamPage({user,toast}){
-  const[email,setEmail]=useState('');
-  return <div className="fu" style={{maxWidth:640}}>
-    <h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:700,color:C.text,marginBottom:4}}>Team</h2>
-    <p style={{fontSize:13,color:C.t3,marginBottom:22}}>Invite teammates to collaborate on Playbooks and share growth actions.</p>
-    <Card style={{marginBottom:14}}>
-      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:14}}>Invite a teammate</div>
-      <div style={{display:'flex',gap:8}}>
-        <Input value={email} onChange={setEmail} placeholder="colleague@company.com" type="email" style={{flex:1}}/>
-        <Btn v="primary" onClick={()=>{if(email){toast(`Invite sent to ${email}`,null,'success');setEmail('');}else toast('Enter an email',null,'warning');}}>Send invite</Btn>
-      </div>
-    </Card>
-    <Card style={{marginBottom:14}}>
-      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:14}}>Members</div>
-      <div style={{display:'flex',alignItems:'center',gap:12,padding:'10px 0',borderBottom:`1px solid ${C.border}`}}>
-        <Avatar name={user.name} size={34}/><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:C.text}}>{user.name}</div><div style={{fontSize:12,color:C.t3}}>{user.email}</div></div>
-        <Tag label="Admin" col={C.purple}/><span style={{fontSize:11,color:C.t4}}>You</span>
-      </div>
-      <div style={{marginTop:14,padding:'18px',background:C.bg,borderRadius:10,border:`1px dashed ${C.borderS}`,textAlign:'center'}}>
-        <Icon name="users" size={22} color={C.t4} style={{marginBottom:8}}/>
-        <div style={{fontSize:13,fontWeight:500,color:C.t3}}>Invite your team to collaborate</div>
-        <div style={{fontSize:11,color:C.t4,marginTop:2}}>Available on Team plan ($299/mo)</div>
-      </div>
-    </Card>
-    <Card>
-      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Shared growth actions</div>
-      <div style={{fontSize:13,color:C.t3,marginBottom:12}}>Pool growth actions across your whole team on the Team plan.</div>
-      <Btn v="primary" size="sm" onClick={()=>toast('Opening Team plan…')}>Upgrade to Team Plan →</Btn>
-    </Card>
-  </div>;
-}
-
-/* ─── PROFILE PAGE ────────────────────────────── */
-const PLANS=[
-  {name:'Founder',price:'Free forever',col:C.t3,features:['Core Playbooks','AI tools audit','Personalised start']},
-  {name:'Builder',price:'$99 / year',col:C.purple,features:['Full Playbook library','Curated Toolkits','Monthly drops'],popular:true},
-  {name:'Pro',price:'$49 / month',col:C.pink,features:['Everything in Builder','AI Agents','Monthly credits']},
-  {name:'Team',price:'$299 / month',col:'#8B5CF6',features:['Up to 10 seats','Shared credits','Team Playbooks']},
-  {name:'Scale',price:'$999 / month',col:C.black,features:['Unlimited seats','Custom Agents','Dedicated support']},
-];
-function ProfilePage({user,onUpdate,toast}){
-  const[edit,setEdit]=useState(false);const[form,setForm]=useState({...user});const[modal,setModal]=useState(false);
-  const save=()=>{onUpdate({...form,name:`${form.firstName||''} ${form.lastName||''}`.trim()});setEdit(false);toast('Profile saved!',null,'success');};
-  return <div className="fu" style={{maxWidth:640}}>
-    <h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:700,color:C.text,marginBottom:4}}>Profile</h2>
-    <p style={{fontSize:13,color:C.t3,marginBottom:22}}>Manage your personal information and preferences.</p>
-    <Card style={{marginBottom:14}}>
-      <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:20,paddingBottom:18,borderBottom:`1px solid ${C.border}`}}>
-        <div style={{position:'relative'}}><Avatar name={user.name} size={60}/>
-          <button onClick={()=>toast('Photo upload coming soon…',null,'warning')} style={{position:'absolute',bottom:-2,right:-2,width:22,height:22,borderRadius:'50%',background:C.surface,border:`2px solid ${C.border}`,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Icon name="pencil" size={11} color={C.t2}/></button>
-        </div>
-        <div style={{flex:1}}>
-          <div style={{fontSize:18,fontWeight:700,color:C.text,lineHeight:1.2,fontFamily:C.heading}}>{user.name}</div>
-          <div style={{fontSize:13,color:C.t3,marginTop:2}}>{user.email}</div>
-          <div style={{marginTop:7,display:'flex',gap:6}}><Tag label={user.plan+' Plan'} col={C.purple}/><Tag label={user.role||'Founder'} col={C.t3}/></div>
-        </div>
-        <Btn v={edit?'success':'outline'} size="sm" onClick={()=>{if(edit)save();else setEdit(true);}}>
-          {edit?<><Icon name="check" size={13} color="#fff"/> Save</>:<><Icon name="pencil" size={13}/> Edit</>}
-        </Btn>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-        {edit?<>
-          <Input label="First name" value={form.firstName||''} onChange={v=>setForm({...form,firstName:v})}/>
-          <Input label="Last name" value={form.lastName||''} onChange={v=>setForm({...form,lastName:v})}/>
-          <Input label="Work email" value={form.email||''} onChange={v=>setForm({...form,email:v})} style={{gridColumn:'1 / -1'}}/>
-          <Input label="Company" value={form.company||''} onChange={v=>setForm({...form,company:v})} style={{gridColumn:'1 / -1'}}/>
-          <Input label="Role" value={form.role||''} onChange={v=>setForm({...form,role:v})}/>
-          <Input label="Industry" value={form.industry||''} onChange={v=>setForm({...form,industry:v})}/>
-        </>:[['First name',form.firstName],['Last name',form.lastName],['Work email',form.email,true],['Company',form.company,true],['Role',form.role],['Industry',form.industry]].map(([label,value,span])=>(
-          <div key={label} style={{gridColumn:span?'1 / -1':'auto'}}>
-            <div style={{fontSize:11,fontWeight:600,color:C.t3,marginBottom:3,textTransform:'uppercase',letterSpacing:'0.05em'}}>{label}</div>
-            <div style={{fontSize:14,color:C.text}}>{value||'—'}</div>
-          </div>
-        ))}
-      </div>
-      {edit&&<div style={{display:'flex',gap:8,marginTop:16,paddingTop:14,borderTop:`1px solid ${C.border}`}}>
-        <Btn v="success" onClick={save}><Icon name="check" size={14} color="#fff"/> Save</Btn>
-        <Btn v="ghost" onClick={()=>{setEdit(false);setForm({...user});}}>Cancel</Btn>
-      </div>}
-    </Card>
-    <Card style={{marginBottom:14}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
-        <div><div style={{fontSize:14,fontWeight:700,color:C.text}}>Your Plan</div><div style={{fontSize:12,color:C.t3,marginTop:2}}>No lock-in. Upgrade or downgrade anytime.</div></div>
-        <Btn size="sm" v="primary" onClick={()=>setModal(true)}><Icon name="lightning" size={13} color="#fff"/> Upgrade</Btn>
-      </div>
-      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-        {PLANS.slice(0,4).map(p=>(
-          <div key={p.name} onClick={()=>setModal(true)} style={{flex:'1 0 auto',minWidth:100,border:`1.5px solid ${user.plan===p.name?p.col:C.border}`,borderRadius:10,padding:'10px 11px',cursor:'pointer',background:user.plan===p.name?p.col+'08':C.surface,transition:'all .15s',position:'relative'}}>
-            {p.popular&&<div style={{position:'absolute',top:-8,left:'50%',transform:'translateX(-50%)',fontSize:9,fontWeight:700,background:C.green,color:'#fff',padding:'2px 7px',borderRadius:20,whiteSpace:'nowrap'}}>POPULAR</div>}
-            <div style={{fontSize:12,fontWeight:700,color:user.plan===p.name?p.col:C.text}}>{p.name}</div>
-            <div style={{fontSize:11,color:user.plan===p.name?p.col:C.t3,marginTop:1}}>{p.price}</div>
-            {user.plan===p.name&&<div style={{fontSize:9,fontWeight:700,color:p.col,marginTop:3}}>CURRENT</div>}
-          </div>
-        ))}
-      </div>
-    </Card>
-    <Card style={{marginBottom:14}}>
-      <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:14}}>Usage This Month</div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
-        {[{label:'Playbooks',val:'3',icon:'bookOpen',col:C.purple},{label:'Agent runs',val:'11',icon:'robot',col:C.green},{label:'Actions used',val:'14',icon:'lightning',col:C.amber},{label:'Toolkits saved',val:'2',icon:'toolbox',col:C.pink}].map(s=>(
-          <div key={s.label} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px',textAlign:'center'}}>
-            <Icon name={s.icon} size={16} color={s.col} style={{marginBottom:6}}/>
-            <div style={{fontFamily:C.mono,fontSize:20,fontWeight:700,color:C.text,lineHeight:1}}>{s.val}</div>
-            <div style={{fontSize:10,color:C.t4,marginTop:3}}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-    </Card>
-    <Card>
-      <div style={{fontSize:13,fontWeight:700,color:C.red,marginBottom:10}}>Danger Zone</div>
-      <Btn v="danger" size="sm" onClick={()=>toast('Account deletion requires email confirmation.',null,'warning')}><Icon name="warning" size={13}/> Delete account</Btn>
-    </Card>
-    {modal&&<>
-      <div onClick={()=>setModal(false)} style={{position:'fixed',inset:0,background:'rgba(10,10,11,.42)',backdropFilter:'blur(4px)',zIndex:800,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px'}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:720,maxWidth:'95vw',background:C.surface,borderRadius:18,boxShadow:'0 24px 80px rgba(0,0,0,.22)',animation:'scaleIn .22s ease both',overflow:'hidden'}}>
-        <div style={{padding:'22px 24px 16px',borderBottom:`1px solid ${C.border}`}}>
-          <div style={{fontSize:20,fontWeight:700,color:C.text,marginBottom:2,fontFamily:C.heading}}>Choose your plan</div>
-          <div style={{fontSize:13,color:C.t3,fontFamily:C.sans}}>From solo founders to scaling teams.</div>
-        </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,padding:24}}>
-          {PLANS.map(p=>(
-            <div key={p.name} onClick={()=>{onUpdate({...user,plan:p.name});setModal(false);toast(`Switched to ${p.name} Plan!`,null,'success');}} style={{border:`1.5px solid ${user.plan===p.name?p.col:C.border}`,borderRadius:12,padding:'16px 12px',cursor:'pointer',background:user.plan===p.name?p.col+'07':C.surface,transition:'all .15s',position:'relative'}}>
-              <div style={{fontSize:14,fontWeight:700,color:p.col,marginBottom:3,fontFamily:C.heading}}>{p.name}</div>
-              <div style={{fontSize:12,fontWeight:600,color:C.text,marginBottom:10,fontFamily:C.sans}}>{p.price}</div>
-              {p.features.map(f=><div key={f} style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.t2,marginBottom:3,fontFamily:C.sans}}><Icon name="check" size={11} color={p.col}/> {f}</div>)}
-            </div>
-          ))}
-        </div>
-        <div style={{padding:'0 24px 20px'}}><Btn v="ghost" onClick={()=>setModal(false)} full>Close</Btn></div>
-      </div>
-      </div>
-    </>}
-  </div>;
-}
-
-/* ─── SETTINGS PAGE (no Appearance section) ─────── */
-const SECS=[{id:'account',icon:'user',label:'Account'},{id:'notifications',icon:'bell',label:'Notifications'},{id:'billing',icon:'creditCard',label:'Billing'},{id:'privacy',icon:'shield',label:'Privacy & Security'},{id:'integrations',icon:'code',label:'Integrations'}];
-function SettingsPage({user,toast}){
-  const[sec,setSec]=useState('account');
-  const[notifs,setNotifs]=useState({email:true,browser:false,weekly:true,agentComplete:true,newPlaybook:true});
-  function Row({label,sub,children}){return <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 0',borderBottom:`1px solid ${C.border}`}}><div style={{flex:1,marginRight:24}}><div style={{fontSize:13,fontWeight:500,color:C.text}}>{label}</div>{sub&&<div style={{fontSize:12,color:C.t3,marginTop:2,lineHeight:1.4}}>{sub}</div>}</div>{children}</div>;}
-  const content={
-    account:<Card>
-      <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:16}}>Account Settings</div>
-      <div style={{display:'flex',flexDirection:'column',gap:14}}>
-        <Input label="Display name" value={user.name} onChange={()=>{}}/>
-        <Input label="Email address" value={user.email||''} onChange={()=>{}} type="email"/>
-        <Input label="Company" value={user.company||''} onChange={()=>{}}/>
-        <Input label="Website" value="" onChange={()=>{}} placeholder="https://yourcompany.com"/>
-        <Btn v="primary" size="sm" onClick={()=>toast('Account updated!',null,'success')} style={{width:'fit-content'}}><Icon name="check" size={13} color="#fff"/> Save changes</Btn>
-      </div>
-    </Card>,
-    notifications:<Card>
-      <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>Notifications</div>
-      <div style={{fontSize:12,color:C.t3,marginBottom:16}}>Control when and how Wedigtech contacts you.</div>
-      {[{k:'email',l:'Email notifications',s:'Agent completions, Playbook updates, weekly digest'},{k:'browser',l:'Browser push',s:'Real-time alerts when agents finish'},{k:'weekly',l:'Wedigtech Weekly',s:'AI tools drops, new Playbooks, founder tips — every Monday'},{k:'agentComplete',l:'Agent completion alerts',s:'Get notified the moment an agent finishes'},{k:'newPlaybook',l:'New Playbook drops',s:'Be first to know when a new Playbook is published'}].map(n=>(
-        <Row key={n.k} label={n.l} sub={n.s}><Toggle on={notifs[n.k]} toggle={()=>setNotifs(p=>({...p,[n.k]:!p[n.k]}))}/></Row>
-      ))}
-    </Card>,
-    billing:<div style={{display:'flex',flexDirection:'column',gap:12}}>
-      <Card>
-        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:14}}>Current Plan</div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 14px',background:C.purpleL,borderRadius:10,border:`1px solid ${C.purple}20`}}>
-          <div><div style={{fontSize:14,fontWeight:700,color:C.purple}}>{user.plan} Plan</div><div style={{fontSize:12,color:C.t3}}>Free forever · 20 growth actions / month · Core Playbooks</div></div>
-          <Btn size="sm" v="primary" onClick={()=>toast('Opening upgrade flow…')}>Upgrade</Btn>
-        </div>
-      </Card>
-      <Card>
-        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:14}}>Growth Actions</div>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}><span style={{fontSize:13,color:C.t2}}>14 of 20 growth actions used this month</span><Btn size="sm" v="outline" onClick={()=>toast('Buy more…')}>Get more</Btn></div>
-        <div style={{height:6,background:C.border,borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:'70%',background:C.purple,borderRadius:3}}/></div>
-        <div style={{fontSize:11,color:C.t4,marginTop:5}}>Renews in 18 days</div>
-      </Card>
-      <Card><div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:14}}>Billing History</div><div style={{textAlign:'center',padding:'20px 0',fontSize:13,color:C.t3}}>No invoices yet. Upgrade to see billing history.</div></Card>
-    </div>,
-    privacy:<Card>
-      <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>Privacy & Security</div>
-      {[{l:'Change password',s:'Last changed: Never',a:'Change',v:'outline'},{l:'Two-factor authentication',s:'Add an extra layer of security',a:'Enable',v:'primary'},{l:'Active sessions',s:'1 active session — Chrome, Jaipur IN',a:'Manage',v:'outline'},{l:'Export your data',s:'Download all Playbook data, activity, preferences',a:'Export',v:'outline'},{l:'Delete account',s:'Permanently delete your account and all data',a:'Delete',v:'danger'}].map(item=>(
-        <Row key={item.l} label={item.l} sub={item.s}><Btn size="sm" v={item.v} onClick={()=>toast(`${item.l}…`,null,item.v==='danger'?'warning':'default')}>{item.a}</Btn></Row>
-      ))}
-    </Card>,
-    integrations:<Card>
-      <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>Integrations</div>
-      <div style={{fontSize:12,color:C.t3,marginBottom:16}}>Connect Wedigtech to your existing tools.</div>
-      {[{name:'Slack',icon:'megaphone',desc:'Agent completion alerts in your Slack channel',col:'#4A154B'},{name:'Notion',icon:'notePencil',desc:'Sync Playbook outputs to Notion pages',col:'#000'},{name:'HubSpot',icon:'target',desc:'Export leads from Lead Gen Agent',col:'#FF7A59'},{name:'Zapier',icon:'lightning',desc:'Trigger automations from agent completions',col:'#FF4F00'},{name:'Google Sheets',icon:'chartBar',desc:'Export results as Google Sheets',col:'#34A853'}].map(int=>(
-        <div key={int.name} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:`1px solid ${C.border}`}}>
-          <div style={{width:36,height:36,borderRadius:9,background:int.col+'15',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name={int.icon} size={17} color={int.col}/></div>
-          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:C.text}}>{int.name}</div><div style={{fontSize:11,color:C.t3}}>{int.desc}</div></div>
-          <Btn size="sm" v="outline" onClick={()=>toast(`Connecting ${int.name}…`)}>Connect</Btn>
-        </div>
-      ))}
-    </Card>,
-  };
-  return <div className="fu" style={{display:'flex',gap:24,alignItems:'flex-start'}}>
-    <div style={{width:186,flexShrink:0}}>
-      <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.07em',color:C.t4,marginBottom:8,padding:'0 2px'}}>Settings</div>
-      {SECS.map(s=>{
-        const[h,setH]=useState(false);const active=sec===s.id;
-        return <button key={s.id} onClick={()=>setSec(s.id)} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)}
-          style={{width:'100%',display:'flex',alignItems:'center',gap:9,padding:'8px 10px',borderRadius:9,fontSize:14,fontWeight:active?600:400,color:active?C.purple:h?C.text:C.t2,background:active?C.purpleL:h?C.bg:'transparent',border:'none',cursor:'pointer',fontFamily:C.sans,textAlign:'left',marginBottom:2,transition:'all .12s'}}>
-          <Icon name={s.icon} size={15} color={active?C.purple:'currentColor'}/>{s.label}
-        </button>;
-      })}
-    </div>
-    <div style={{flex:1,maxWidth:540}}>{content[sec]||null}</div>
-  </div>;
-}
-
-/* ─── RESULTS PAGE ────────────────────────────── */
-function ResultsPage({toast}){
-  const stats=[{label:'Total leads generated',val:'1,247',icon:'target',col:C.green,change:'+23%'},{label:'Content pieces created',val:'47',icon:'pencil',col:C.amber,change:'+8 this month'},{label:'Revenue influenced',val:'₹4.2L',icon:'trendUp',col:C.blue,change:'estimated'},{label:'Hours saved by AI',val:'47h',icon:'sparkle',col:C.purple,change:'this month'}];
-  const runs=[{id:1,agent:'Get 1,000 Qualified Leads',date:'Apr 15',result:'847 leads',credits:4,status:'done'},{id:2,agent:'Turn 1 Video Into 30 Pieces',date:'Apr 14',result:'10 posts + newsletter',credits:2,status:'done'},{id:3,agent:'Book 50 Discovery Calls',date:'Apr 11',result:'240 sequences sent',credits:3,status:'done'},{id:4,agent:'Full Competitor Intelligence',date:'Apr 8',result:'12-page report',credits:5,status:'done'},{id:5,agent:'Get 1,000 Qualified Leads',date:'Apr 5',result:'400 leads',credits:4,status:'done'}];
-  return <div className="fu">
-    <div style={{marginBottom:20}}>
-      <h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:700,color:C.text}}>Results</h2>
-      <p style={{fontSize:13,color:C.t3,marginTop:3}}>Track outcomes from every Agent run, Playbook phase, and toolkit applied.</p>
-    </div>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:24}}>
-      {stats.map(s=>(
-        <div key={s.label} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:16}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-            <div style={{fontSize:11,fontWeight:600,color:C.t3,textTransform:'uppercase',letterSpacing:'0.05em'}}>{s.label}</div>
-            <div style={{width:32,height:32,borderRadius:8,background:s.col+'12',display:'flex',alignItems:'center',justifyContent:'center'}}><Icon name={s.icon} size={16} color={s.col}/></div>
-          </div>
-          <div style={{fontFamily:C.mono,fontSize:26,fontWeight:700,color:C.text,lineHeight:1,marginBottom:6,animation:'countUp .4s ease'}}>{s.val}</div>
-          <span style={{fontSize:11,color:C.green,fontWeight:600}}>{s.change}</span>
-        </div>
-      ))}
-    </div>
-    <SHd title="Agent Run History" link="Export CSV" onLink={()=>toast('Exporting…',null,'success')}/>
-    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,overflow:'hidden'}}>
-      <div style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1.5fr 1fr 80px',padding:'10px 16px',borderBottom:`1px solid ${C.border}`,background:C.bg}}>
-        {['Agent','Date','Result','Cost','Status'].map(h=><span key={h} style={{fontSize:11,fontWeight:600,color:C.t3,textTransform:'uppercase',letterSpacing:'0.05em'}}>{h}</span>)}
-      </div>
-      {runs.map((r,i)=>(
-        <div key={r.id} onClick={()=>toast(`Viewing ${r.agent}…`)} style={{display:'grid',gridTemplateColumns:'1.5fr 1fr 1.5fr 1fr 80px',padding:'12px 16px',borderBottom:i<runs.length-1?`1px solid ${C.border}`:'none',cursor:'pointer',transition:'background .12s'}} onMouseEnter={e=>e.currentTarget.style.background=C.bg} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-          <div style={{fontSize:13,fontWeight:600,color:C.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.agent}</div>
-          <div style={{fontSize:12,color:C.t3}}>{r.date}</div>
-          <div style={{fontSize:12,color:C.text,fontWeight:500}}>{r.result}</div>
-          <div style={{fontFamily:C.mono,fontSize:12,color:C.t2}}>{r.credits} cr</div>
-          <span style={{fontSize:11,fontWeight:600,color:C.green,background:C.greenBg,padding:'2px 8px',borderRadius:20,width:'fit-content'}}>Done</span>
-        </div>
-      ))}
-    </div>
-  </div>;
-}
-
-function WorkspacePage({toast}){
-  const items=[{id:1,type:'output',icon:'target',title:'B2B SaaS Lead List — India',desc:'847 leads · CSV · 94% verified',date:'2h ago',tag:'GROW',col:C.green},{id:2,type:'output',icon:'pencil',title:'Wedigtech Intro — 10 Social Posts',desc:'Instagram, LinkedIn, Twitter threads',date:'Yesterday',tag:'GROW',col:C.amber},{id:3,type:'playbook',icon:'bookOpen',title:'MVP Builder — Phase 1 Notes',desc:'6 pages · Validation framework',date:'3d ago',tag:'BUILD',col:C.purple},{id:4,type:'output',icon:'magnifying',title:'Competitor Research Report',desc:'12 pages · 8 competitors',date:'5d ago',tag:'RESEARCH',col:C.blue},{id:5,type:'toolkit',icon:'toolbox',title:'MVP Builder Toolkit',desc:'7 assets · Downloaded',date:'1w ago',tag:'BUILD',col:C.purple}];
-  return <div className="fu">
-    <div style={{marginBottom:20}}><h2 style={{fontFamily:C.heading,fontSize:24,fontWeight:700,color:C.text}}>My Work</h2><p style={{fontSize:13,color:C.t3,marginTop:3}}>All your Playbook outputs, Agent results, and saved assets.</p></div>
-    <div style={{display:'flex',flexDirection:'column',gap:8}}>
-      {items.map((item,i)=>(
-        <div key={item.id} onClick={()=>toast(`Opening ${item.title}…`)} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:12,padding:'13px 15px',cursor:'pointer',transition:'all .15s',display:'flex',alignItems:'center',gap:12}}
-          onMouseEnter={e=>{e.currentTarget.style.borderColor=item.col+'55';e.currentTarget.style.transform='translateX(3px)';}}
-          onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform='none';}}>
-          <div style={{width:36,height:36,borderRadius:9,background:item.col+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Icon name={item.icon} size={17} color={item.col}/></div>
-          <div style={{flex:1,minWidth:0}}><div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:2}}>{item.title}</div><div style={{fontSize:12,color:C.t3}}>{item.desc}</div></div>
-          <div style={{textAlign:'right',flexShrink:0}}><div style={{marginBottom:4}}><Tag label={item.tag} col={item.col}/></div><div style={{fontSize:11,color:C.t4}}>{item.date}</div></div>
-          <div style={{display:'flex',gap:6,marginLeft:6}}>
-            <Btn size="xs" v="ghost" onClick={e=>{e.stopPropagation();toast('Downloading…',null,'success');}}><Icon name="download" size={12}/></Btn>
-            <Btn size="xs" v="ghost" onClick={e=>{e.stopPropagation();toast('Copied!',null,'success');}}><Icon name="copy" size={12}/></Btn>
-          </div>
-        </div>
-      ))}
-    </div>
-  </div>;
-}
 
 /* ─── APP ─────────────────────────────────────── */
+
+/* ─── VERSION BAR ─────────────────────────────── */
+const VERSIONS=[
+  {version:'1.1.0',date:'Apr 22 2026',label:'AI Agents tab — complete rebuild',changes:['All 6 agent result views with real output data','Run history with localStorage persistence','Unlimited credits for testing','Agent chain flow with context handoff','Agent-specific running step labels']},
+  {version:'1.0.0',date:'Apr 20 2026',label:'v10 launch — full feature set',changes:['PlaybookActiveView with 3-tab system','All 9 playbooks with 107 prompts','AI-First GTM playbook added','Homepage redesign with category tabs','PBModal full-screen portal']},
+];
+
+function VersionBar(){
+  const[open,setOpen]=useState(false);
+  const v=VERSIONS[0];
+  return <>
+    <div style={{position:'fixed',bottom:0,left:0,right:0,height:32,background:C.black,borderTop:`1px solid rgba(255,255,255,.08)`,display:'flex',alignItems:'center',paddingLeft:16,paddingRight:16,gap:16,zIndex:900,fontFamily:C.mono}}>
+      <div style={{display:'flex',alignItems:'center',gap:6}}>
+        <div style={{width:6,height:6,borderRadius:'50%',background:C.green,animation:'pulse 2s ease infinite'}}/>
+        <span style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,.9)',letterSpacing:'0.06em'}}>v{v.version}</span>
+      </div>
+      <span style={{fontSize:10,color:'rgba(255,255,255,.35)',letterSpacing:'0.04em'}}>{v.date}</span>
+      <span style={{fontSize:10,color:'rgba(255,255,255,.5)'}}>{v.label}</span>
+      <div style={{flex:1}}/>
+      <button onClick={()=>setOpen(!open)}
+        style={{fontSize:10,color:'rgba(255,255,255,.4)',background:'none',border:'1px solid rgba(255,255,255,.1)',borderRadius:5,padding:'2px 9px',cursor:'pointer',fontFamily:C.mono,letterSpacing:'0.04em',transition:'all .15s'}}
+        onMouseEnter={e=>e.currentTarget.style.color='rgba(255,255,255,.8)'}
+        onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,.4)'}>
+        changelog {open?'▲':'▼'}
+      </button>
+    </div>
+    {open&&ReactDOM.createPortal(
+      <div style={{position:'fixed',bottom:32,right:16,width:340,background:C.black,border:'1px solid rgba(255,255,255,.1)',borderRadius:12,padding:'16px',zIndex:901,boxShadow:'0 -8px 32px rgba(0,0,0,.4)',fontFamily:C.sans}}>
+        <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.4)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:12}}>Release changelog</div>
+        {VERSIONS.map((ver,vi)=>(
+          <div key={ver.version} style={{marginBottom:vi<VERSIONS.length-1?14:0,paddingBottom:vi<VERSIONS.length-1?14:0,borderBottom:vi<VERSIONS.length-1?'1px solid rgba(255,255,255,.07)':'none'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+              <span style={{fontSize:11,fontWeight:700,color:C.green,fontFamily:C.mono}}>v{ver.version}</span>
+              <span style={{fontSize:10,color:'rgba(255,255,255,.3)',fontFamily:C.mono}}>{ver.date}</span>
+              {vi===0&&<span style={{fontSize:9,fontWeight:700,color:C.black,background:C.green,padding:'1px 6px',borderRadius:20}}>LATEST</span>}
+            </div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.6)',marginBottom:6}}>{ver.label}</div>
+            {ver.changes.map((c,ci)=>(
+              <div key={ci} style={{display:'flex',gap:6,marginBottom:3}}>
+                <span style={{color:C.purple,fontSize:10,marginTop:1,flexShrink:0}}>+</span>
+                <span style={{fontSize:10,color:'rgba(255,255,255,.45)',lineHeight:1.5}}>{c}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>,
+      document.body
+    )}
+  </>;
+}
+
 function App(){
   const[tab,setTab]=useState('home');
   const[testMode,setTestMode]=useState('returning');
@@ -3291,6 +3410,7 @@ function App(){
   });
   const[notifs,setNotifs]=useState(NOTIFS);
   const{toasts,show:toast,dismiss}=useToast();
+  const[deepLink,setDeepLink]=useState(null);
   const credits={used:14,total:20,days:18};
   const h=new Date().getHours();
   const gw=h<12?'Good morning':h<17?'Good afternoon':'Good evening';
@@ -3308,9 +3428,11 @@ function App(){
     </>;
   }
 
+  const[deepLink,setDeepLink]=useState(null); // {type:'playbook'|'agent'|'toolkit', id:N}
+
   const pages={
-    home:<HomePage user={user} toast={toast} testMode={testMode} onTab={setTab} obAnswers={obAnswers}/>,
-    playbooks:<PlaybooksPage toast={toast}/>,
+    home:<HomePage user={user} toast={toast} testMode={testMode} onTab={setTab} obAnswers={obAnswers} onDeepLink={setDeepLink}/>,
+    playbooks:<PlaybooksPage toast={toast} deepLink={deepLink} onClearDeepLink={()=>setDeepLink(null)}/>,
     toolkits:<ToolkitsPage toast={toast}/>,
     agents:<AgentsPage toast={toast} onTab={setTab}/>,
     workspace:<WorkspacePage toast={toast}/>,
@@ -3330,7 +3452,7 @@ function App(){
       <div style={{flex:1,display:'flex',flexDirection:'column',minWidth:0,minHeight:0}}>
         <Topbar greeting={`${gw}, ${user.firstName}.`} onTab={setTab} notifs={notifs} onMarkRead={markRead}/>
         <main style={{flex:1,minHeight:0,overflowY:'auto',overflowX:'hidden'}}>
-          <div style={{padding:'28px 32px 56px',maxWidth:1020,margin:'0 auto'}}>
+          <div style={{padding:'28px 32px 72px',maxWidth:1020,margin:'0 auto'}}>
             {pages[tab]||pages.home}
           </div>
         </main>
@@ -3340,9 +3462,13 @@ function App(){
     <TestBanner mode={testMode} onChange={m=>{setTestMode(m);if(m==='new')setObShown(false);else setObShown(true);}}/>
     <HelpButton/>
     <ToastStack toasts={toasts} dismiss={dismiss}/>
+    <VersionBar/>
   </>;
 }
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
+
 </script>
+
 </body>
 </html>
